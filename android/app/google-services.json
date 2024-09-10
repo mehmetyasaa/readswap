@@ -1,0 +1,67 @@
+{
+  "project_info": {
+    "project_number": "149350324741",
+    "project_id": "readswap37",
+    "storage_bucket": "readswap37.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:149350324741:android:470c24be33e254862e5a6c",
+        "android_client_info": {
+          "package_name": "com.android.application"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAvEk5LdzBDpHWk5hlrncOlCS9HiAKOk3E"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:149350324741:android:56e35b34729a19ce2e5a6c",
+        "android_client_info": {
+          "package_name": "com.example.readswap"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAvEk5LdzBDpHWk5hlrncOlCS9HiAKOk3E"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:149350324741:android:09292e7b9c832bd32e5a6c",
+        "android_client_info": {
+          "package_name": "com.example.readswapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAvEk5LdzBDpHWk5hlrncOlCS9HiAKOk3E"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
