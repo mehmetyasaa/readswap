@@ -4,6 +4,8 @@ import 'package:readswap/coin.dart';
 import 'package:readswap/orderpage.dart';
 import 'package:readswap/ProfileUpdate.dart';
 import 'package:readswap/sold_book_page.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 void main() {
   runApp(MyApp());
@@ -23,7 +25,37 @@ class MyApp extends StatelessWidget {
   }
 }
 
-class ProfilePage extends StatelessWidget {
+class ProfilePage extends StatefulWidget {
+  @override
+  _ProfilePageState createState() => _ProfilePageState();
+}
+
+class _ProfilePageState extends State<ProfilePage> {
+  late Future<String?> userNameFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    userNameFuture = getUsername();
+  }
+
+  Future<String?> getUsername() async {
+    try {
+      User? user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        DocumentSnapshot userSnapshot = await FirebaseFirestore.instance
+            .collection('Users')
+            .doc(user.uid)
+            .get();
+        return userSnapshot['username'];
+      }
+      return null;
+    } catch (e) {
+      print('Error fetching username: $e');
+      return null;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -53,9 +85,16 @@ class ProfilePage extends StatelessWidget {
                   ),
                   Padding(
                     padding: const EdgeInsets.only(top: 10),
-                    child: Text(
-                      "Mehmet Yaşa",
-                      style: TextStyle(fontSize: 20, color: Colors.white),
+                    child: FutureBuilder<String?>(
+                      future: userNameFuture,
+                      builder: (context, snapshot) {
+                        String userName = snapshot.data ??
+                            'Kullanıcı'; // Kullanıcı adı yoksa "Kullanıcı" yazsın.
+                        return Text(
+                          userName,
+                          style: TextStyle(fontSize: 20, color: Colors.white),
+                        );
+                      },
                     ),
                   )
                 ],

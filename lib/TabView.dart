@@ -4,6 +4,7 @@ import 'package:readswap/firebase/auth.dart';
 import 'package:readswap/first_page.dart';
 import 'package:readswap/form_list_screen.dart';
 import 'package:readswap/loginpage.dart';
+import 'package:readswap/message.dart';
 import 'package:readswap/privacyPolicy.dart';
 import 'package:readswap/product_add_page.dart';
 import 'package:readswap/settings.dart';
@@ -33,7 +34,7 @@ class TabView extends StatelessWidget {
           onPressed: () {
             Navigator.of(context).pushReplacement(
               MaterialPageRoute(
-                builder: (context) => ForumListScreen(),
+                builder: (context) => SocialMedia(),
               ),
             );
           },

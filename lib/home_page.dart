@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:readswap/book_details.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:readswap/category.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:readswap/firebase/auth.dart';
 
 void main() {
   runApp(const MyApp());
@@ -29,11 +31,14 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   late Future<List<DocumentSnapshot>> bestBooksFuture;
+  late Future<String?> userNameFuture;
 
   @override
   void initState() {
     super.initState();
     bestBooksFuture = _fetchBestBooks();
+    userNameFuture =
+        Auth().getUsername(); // Giriş yapan kullanıcının ismini alıyoruz.
   }
 
   Future<List<DocumentSnapshot>> _fetchBestBooks() async {
@@ -83,27 +88,34 @@ class _HomePageState extends State<HomePage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Padding(
-              padding:
-                  EdgeInsets.only(top: 50, right: 20, bottom: 20, left: 20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    "Merhaba, Zühal!",
-                    style: TextStyle(
-                      fontSize: 31,
-                      fontWeight: FontWeight.w500,
-                      color: Color(0xFF86BC96),
-                    ),
-                  ),
-                  Text(
-                    "Her yerde aradığın kitap burada!",
-                    style: TextStyle(
-                      color: Color(0xFF6C6C6C),
-                    ),
-                  ),
-                ],
+            Padding(
+              padding: const EdgeInsets.only(
+                  top: 50, right: 20, bottom: 20, left: 20),
+              child: FutureBuilder<String?>(
+                future: userNameFuture,
+                builder: (context, snapshot) {
+                  String userName = snapshot.data ??
+                      'Kullanıcı'; // Kullanıcı adı yoksa "Kullanıcı" yazsın.
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        "Merhaba, $userName!",
+                        style: const TextStyle(
+                          fontSize: 31,
+                          fontWeight: FontWeight.w500,
+                          color: Color(0xFF86BC96),
+                        ),
+                      ),
+                      const Text(
+                        "Her yerde aradığın kitap burada!",
+                        style: TextStyle(
+                          color: Color(0xFF6C6C6C),
+                        ),
+                      ),
+                    ],
+                  );
+                },
               ),
             ),
             Padding(
@@ -119,7 +131,7 @@ class _HomePageState extends State<HomePage> {
                   ),
                   prefixIcon: Icon(Icons.search, color: Colors.grey[600]),
                 ),
-                cursorColor: Color(0xFF787878),
+                cursorColor: const Color(0xFF787878),
               ),
             ),
             const SizedBox(height: 20),
