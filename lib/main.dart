@@ -6,9 +6,14 @@ import 'package:readswap/loginpage.dart';
 import 'package:readswap/TabView.dart';
 import 'package:readswap/signup.dart';
 
+import 'firebase_options.dart'; // This file will contain your Firebase configuration for different platforms
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions
+        .currentPlatform, // Ensure this loads the correct options for web
+  );
   runApp(const MyApp());
 }
 

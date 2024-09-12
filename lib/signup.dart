@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:readswap/BookCategorySelectionPage.dart';
 import 'package:readswap/TabView.dart';
 import 'package:readswap/home_page.dart';
 import 'package:readswap/firebase/auth.dart';
@@ -30,7 +31,7 @@ class _SignUpPageState extends State<SignUpPage> {
       );
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
-          builder: (context) => TabView(),
+          builder: (context) => CategorySelectionPage(),
         ),
       );
     } on FirebaseAuthException catch (e) {

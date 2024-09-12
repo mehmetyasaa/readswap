@@ -32,6 +32,7 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   late Future<List<DocumentSnapshot>> bestBooksFuture;
   late Future<String?> userNameFuture;
+  late Future<List<String>> selectedCategoriesFuture;
 
   @override
   void initState() {
@@ -39,21 +40,8 @@ class _HomePageState extends State<HomePage> {
     bestBooksFuture = _fetchBestBooks();
     userNameFuture =
         Auth().getUsername(); // Giriş yapan kullanıcının ismini alıyoruz.
-  }
-
-  Future<List<DocumentSnapshot>> _fetchBestBooks() async {
-    try {
-      var querySnapshot = await FirebaseFirestore.instance
-          .collection('Books')
-          .where('isActive', isEqualTo: true)
-          .get();
-      return querySnapshot.docs;
-    } catch (e) {
-      if (kDebugMode) {
-        print('Error fetching best books: $e');
-      }
-      return [];
-    }
+    selectedCategoriesFuture =
+        _fetchSelectedCategories(); // Fetch user's selected categories
   }
 
   Future<String> _getDownloadUrl(String gsUrl) async {
@@ -77,6 +65,72 @@ class _HomePageState extends State<HomePage> {
     } catch (e) {
       print('Error fetching user name: $e');
       return 'Error';
+    }
+  }
+
+  Future<List<DocumentSnapshot>> _fetchBestBooks() async {
+    try {
+      var querySnapshot = await FirebaseFirestore.instance
+          .collection('Books')
+          .where('isActive', isEqualTo: true)
+          .get();
+      return querySnapshot.docs;
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error fetching best books: $e');
+      }
+      return [];
+    }
+  }
+
+  // Fetch selected categories from the user's document in Firebase
+  Future<List<String>> _fetchSelectedCategories() async {
+    try {
+      var user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        var userDoc = await FirebaseFirestore.instance
+            .collection('Users')
+            .doc(user.uid)
+            .get();
+        if (userDoc.exists) {
+          return List<String>.from(userDoc.data()?['selectedCategories'] ?? []);
+        }
+      }
+      return [];
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error fetching selected categories: $e');
+      }
+      return [];
+    }
+  }
+
+  // Fetch books based on the user's selected categories
+  Future<List<DocumentSnapshot>> _fetchRecommendedBooks(
+      List<String> categories) async {
+    if (categories.isEmpty) {
+      print('No categories selected by the user.');
+      return [];
+    }
+
+    try {
+      print('Fetching books for categories: $categories');
+      var querySnapshot = await FirebaseFirestore.instance
+          .collection('Books')
+          .where('isActive', isEqualTo: true)
+          .where('CategoryId', whereIn: categories)
+          .get();
+
+      if (querySnapshot.docs.isEmpty) {
+        print('No books found for the selected categories.');
+      } else {
+        print('Books found: ${querySnapshot.docs.length}');
+      }
+
+      return querySnapshot.docs;
+    } catch (e) {
+      print('Error fetching recommended books: $e');
+      return [];
     }
   }
 
@@ -284,7 +338,161 @@ class _HomePageState extends State<HomePage> {
                       },
                     );
                   },
-                ))
+                )),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              child: _buildRowText("Sizin İçin Önerilenler"),
+            ),
+            FutureBuilder<List<String>>(
+              future: selectedCategoriesFuture,
+              builder: (context, categorySnapshot) {
+                if (categorySnapshot.connectionState ==
+                    ConnectionState.waiting) {
+                  return _buildLoadingWidget();
+                }
+                if (categorySnapshot.hasError) {
+                  return _buildErrorWidget('Error: ${categorySnapshot.error}');
+                }
+                if (!categorySnapshot.hasData ||
+                    categorySnapshot.data!.isEmpty) {
+                  return const Center(
+                      child: Text('No selected categories found.'));
+                }
+
+                List<String> selectedCategories = categorySnapshot.data!;
+
+                return FutureBuilder<List<DocumentSnapshot>>(
+                  future: _fetchRecommendedBooks(selectedCategories),
+                  builder: (context, bookSnapshot) {
+                    if (bookSnapshot.connectionState ==
+                        ConnectionState.waiting) {
+                      return _buildLoadingWidget();
+                    }
+                    if (bookSnapshot.hasError) {
+                      return _buildErrorWidget('Error: ${bookSnapshot.error}');
+                    }
+                    if (!bookSnapshot.hasData || bookSnapshot.data!.isEmpty) {
+                      return const Center(
+                          child: Text('No recommended books found.'));
+                    }
+
+                    List<DocumentSnapshot> recommendedBooks =
+                        bookSnapshot.data!;
+                    return SizedBox(
+                      height: 400,
+                      child: ListView.builder(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: recommendedBooks.length,
+                        itemBuilder: (context, index) {
+                          var book = recommendedBooks[index].data()
+                              as Map<String, dynamic>;
+
+                          // Check if BookImage exists and is not null
+                          if (book['BookImage'] == null) {
+                            return _buildErrorWidget('No Image Available');
+                          }
+
+                          return FutureBuilder<String>(
+                            future: _getDownloadUrl(book['BookImage']),
+                            builder: (context, urlSnapshot) {
+                              if (urlSnapshot.connectionState ==
+                                  ConnectionState.waiting) {
+                                return _buildLoadingWidget();
+                              }
+                              if (urlSnapshot.hasError) {
+                                return _buildErrorWidget(
+                                    'Error: ${urlSnapshot.error}');
+                              }
+                              if (!urlSnapshot.hasData ||
+                                  urlSnapshot.data!.isEmpty) {
+                                return _buildErrorWidget('No Image URL');
+                              }
+
+                              String imageUrl = urlSnapshot.data!;
+
+                              return FutureBuilder<String>(
+                                future: _getUserName(book['UserId']),
+                                builder: (context, userNameSnapshot) {
+                                  if (userNameSnapshot.connectionState ==
+                                      ConnectionState.waiting) {
+                                    return _buildLoadingWidget();
+                                  }
+                                  if (userNameSnapshot.hasError) {
+                                    return _buildErrorWidget(
+                                        'Error: ${userNameSnapshot.error}');
+                                  }
+                                  if (!userNameSnapshot.hasData ||
+                                      userNameSnapshot.data!.isEmpty) {
+                                    return _buildErrorWidget('No User Data');
+                                  }
+
+                                  String userName = userNameSnapshot.data!;
+
+                                  return GestureDetector(
+                                    onTap: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) => BookDetails(
+                                            bookId: recommendedBooks[index].id,
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                    child: Container(
+                                      width: 250,
+                                      child: Padding(
+                                        padding: const EdgeInsets.all(10.0),
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Container(
+                                              height: 300,
+                                              child: ClipRRect(
+                                                borderRadius:
+                                                    BorderRadius.circular(10),
+                                                child: Image.network(
+                                                  imageUrl,
+                                                  width: double.infinity,
+                                                  height: 300,
+                                                  fit: BoxFit.cover,
+                                                ),
+                                              ),
+                                            ),
+                                            const SizedBox(height: 10),
+                                            Text(
+                                              book['BookTitle'] ?? '',
+                                              style: const TextStyle(
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                              maxLines: 2,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                            Text(
+                                              userName,
+                                              style: TextStyle(
+                                                fontSize: 14,
+                                                color: Colors.grey[600],
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  );
+                                },
+                              );
+                            },
+                          );
+                        },
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
           ],
         ),
       ),

@@ -23,13 +23,20 @@ class _ProductAddState extends State<ProductAdd> {
 
   List<String> kategoriler = [
     'Bilim',
-    'Çocuk',
     'Edebiyat',
-    'Tarih',
-    'Savaş',
+    'Çocuk',
     'Eğitim',
+    'Biyografi',
+    'Tarih',
     'Roman',
-    // diğer kategoriler buraya eklenebilir
+    'Polisiye',
+    'Otobiyografi',
+    'Savaş',
+    'Ev Yaşam',
+    'Makale',
+    'Aşk',
+    'Araştırma',
+    'Tiyatro'
   ];
 
   List<String> durumlar = ['Sıfır', 'İkinci El'];
@@ -71,7 +78,7 @@ class _ProductAddState extends State<ProductAdd> {
         uploadedImageUrls.add(imageUrl);
       }
 
-      // Diğer alanları Firestore'a kaydet
+      // Other fields to save to Firestore
       String BookDescription = urunAciklamasiController.text;
       String BookImage =
           uploadedImageUrls.isNotEmpty ? uploadedImageUrls[0] : '';
@@ -80,8 +87,11 @@ class _ProductAddState extends State<ProductAdd> {
       String BookStatus = selectedCondition;
       String BookTitle = kitapAdiController.text;
       String BookWriter = "Unknown";
-      String CategoryId = "";
 
+      // Ensure the selected category is passed to the backend
+      String CategoryId = selectedCategory; // Set selected category
+
+      // Call the create method with the updated parameters
       BookService()
           .create(BookDescription, BookImage, BookIsbn, BookPrice, BookStatus,
               BookTitle, BookWriter, CategoryId)
