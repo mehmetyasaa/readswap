@@ -2,7 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:readswap/firebase/auth.dart';
+import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 import 'package:readswap/service/purchase_controller.dart';
 
 class BookDetails extends StatefulWidget {
@@ -18,6 +18,7 @@ class _BookDetailsState extends State<BookDetails> {
   late Future<DocumentSnapshot> bookFuture;
   final TextEditingController _commentController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
+  double _averageRating = 0.0;
 
   @override
   void initState() {
@@ -26,10 +27,17 @@ class _BookDetailsState extends State<BookDetails> {
   }
 
   Future<DocumentSnapshot> _fetchBookDetails() async {
-    return await FirebaseFirestore.instance
+    final bookDoc = await FirebaseFirestore.instance
         .collection('Books')
         .doc(widget.bookId)
         .get();
+
+    // Get the average rating from the book document
+    setState(() {
+      _averageRating = bookDoc.data()?['averageRating']?.toDouble() ?? 0.0;
+    });
+
+    return bookDoc;
   }
 
   Future<String> _getDownloadUrl(String gsUrl) async {
@@ -40,18 +48,19 @@ class _BookDetailsState extends State<BookDetails> {
   Future<void> _addComment(String commentText) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
-      // Handle unauthenticated user
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Lütfen yorum yapmak için giriş yapınız.')),
       );
       return;
     }
 
-    // Kullanıcı verilerini al
-    final userData = await Auth().getUserData();
+    final userData = await FirebaseFirestore.instance
+        .collection('Users')
+        .doc(user.uid)
+        .get();
 
     final commentData = {
-      'username': userData?['username'] ?? 'Anonim', // Kullanıcı adı
+      'username': userData['username'] ?? 'Anonim',
       'commentText': commentText,
       'timestamp': FieldValue.serverTimestamp(),
     };
@@ -63,14 +72,117 @@ class _BookDetailsState extends State<BookDetails> {
         .add(commentData);
 
     _commentController.clear();
-    setState(() {}); // Refresh to show the new comment
+    setState(() {});
+  }
+
+  Future<void> _saveReview(double rating, String comment) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Lütfen giriş yapınız.')),
+      );
+      return;
+    }
+
+    final reviewData = {
+      'UserId': user.uid,
+      'Rating': rating,
+      'Comment': comment,
+      'BookId': widget.bookId,
+      'ReviewDate': FieldValue.serverTimestamp(),
+    };
+
+    await FirebaseFirestore.instance.collection('Review').add(reviewData);
+
+    await _updateAverageRating();
+  }
+
+  Future<void> _updateAverageRating() async {
+    final reviewSnapshot = await FirebaseFirestore.instance
+        .collection('Review')
+        .where('BookId', isEqualTo: widget.bookId)
+        .get();
+
+    double totalRating = 0;
+    for (var doc in reviewSnapshot.docs) {
+      totalRating += doc.data()['Rating'];
+    }
+
+    double averageRating =
+        reviewSnapshot.size > 0 ? totalRating / reviewSnapshot.size : 0.0;
+
+    await FirebaseFirestore.instance
+        .collection('Books')
+        .doc(widget.bookId)
+        .update({'averageRating': averageRating});
+
+    setState(() {
+      _averageRating = averageRating;
+    });
+  }
+
+  void _showRatingDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        double rating = 0;
+        TextEditingController commentController = TextEditingController();
+
+        return AlertDialog(
+          title: const Text('Değerlendirme Yapın'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              RatingBar.builder(
+                initialRating: 0,
+                minRating: 1,
+                direction: Axis.horizontal,
+                allowHalfRating: true,
+                itemCount: 5,
+                itemPadding: const EdgeInsets.symmetric(horizontal: 4.0),
+                itemBuilder: (context, _) => const Icon(
+                  Icons.star,
+                  color: Colors.amber,
+                ),
+                onRatingUpdate: (newRating) {
+                  rating = newRating;
+                },
+              ),
+              const SizedBox(height: 20),
+              TextFormField(
+                controller: commentController,
+                decoration: const InputDecoration(
+                  labelText: 'Yorumunuzu yazın',
+                  border: OutlineInputBorder(),
+                ),
+                maxLines: 3,
+              ),
+            ],
+          ),
+          actions: [
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _saveReview(rating, commentController.text);
+              },
+              child: const Text('Değerlendir'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: const Text('İptal'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   Widget _buildCommentsSection() {
     return ExpansionTile(
       title: const Text('Yorumlar'),
       children: [
-        // Display existing comments
         StreamBuilder<QuerySnapshot>(
           stream: FirebaseFirestore.instance
               .collection('Books')
@@ -108,7 +220,7 @@ class _BookDetailsState extends State<BookDetails> {
                             .toDate()
                             .toLocal()
                             .toString()
-                            .substring(0, 16) // Display up to minutes
+                            .substring(0, 16)
                         : '',
                     style: const TextStyle(fontSize: 12, color: Colors.grey),
                   ),
@@ -118,7 +230,6 @@ class _BookDetailsState extends State<BookDetails> {
           },
         ),
         const Divider(),
-        // Form to add a new comment
         Padding(
           padding: const EdgeInsets.all(8.0),
           child: Form(
@@ -167,6 +278,12 @@ class _BookDetailsState extends State<BookDetails> {
     return Scaffold(
       appBar: AppBar(
         title: const Text("Kitap Detayları"),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.star_rate),
+            onPressed: _showRatingDialog,
+          ),
+        ],
       ),
       body: FutureBuilder<DocumentSnapshot>(
         future: bookFuture,
@@ -191,23 +308,6 @@ class _BookDetailsState extends State<BookDetails> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // Back Button and Title
-                  // Row(
-                  //   children: [
-                  //     IconButton(
-                  //       icon: Icon(Icons.arrow_back),
-                  //       onPressed: () => Navigator.pop(context),
-                  //     ),
-                  //     Expanded(
-                  //       child: Text(
-                  //         book['BookTitle'] ?? '',
-                  //         style: const TextStyle(
-                  //             fontSize: 18, fontWeight: FontWeight.bold),
-                  //         textAlign: TextAlign.center,
-                  //       ),
-                  //     ),
-                  //   ],
-                  // ),
                   SizedBox(height: 10),
 
                   // Book Image
@@ -251,17 +351,28 @@ class _BookDetailsState extends State<BookDetails> {
                   const SizedBox(height: 10),
 
                   // Rating and Reviews
-                  const Row(
+                  Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.star, color: Colors.black, size: 20),
-                      Icon(Icons.star, color: Colors.black, size: 20),
-                      Icon(Icons.star, color: Colors.black, size: 20),
-                      Icon(Icons.star, color: Colors.black, size: 20),
-                      Icon(Icons.star_half, color: Colors.black, size: 20),
+                      RatingBar.builder(
+                        initialRating: _averageRating,
+                        minRating: 1,
+                        direction: Axis.horizontal,
+                        allowHalfRating: true,
+                        itemCount: 5,
+                        itemPadding:
+                            const EdgeInsets.symmetric(horizontal: 4.0),
+                        itemBuilder: (context, _) => const Icon(
+                          Icons.star,
+                          color: Colors.amber,
+                        ),
+                        onRatingUpdate: (rating) {
+                          // You can optionally handle rating updates here
+                        },
+                      ),
                       SizedBox(width: 5),
                       Text(
-                        '4.5',
+                        _averageRating.toStringAsFixed(1),
                         style: TextStyle(fontSize: 16),
                       ),
                     ],
@@ -298,7 +409,6 @@ class _BookDetailsState extends State<BookDetails> {
                       // Add return policy content
                     ],
                   ),
-                  // Comments Section
                   _buildCommentsSection(),
                   const SizedBox(height: 20),
 
@@ -329,15 +439,13 @@ class _BookDetailsState extends State<BookDetails> {
                             MaterialPageRoute(
                                 builder: (context) => CheckoutPage(
                                       bookId: widget.bookId,
-                                      sellerId: (book['UserId']
-                                              as DocumentReference)
-                                          .id, // Satıcı ID'sini doğru şekilde al
-                                      price:
-                                          bookPrice, // Fiyatı double olarak geçir
+                                      sellerId:
+                                          (book['UserId'] as DocumentReference)
+                                              .id,
+                                      price: bookPrice,
                                       shippingCost: 100,
                                     )),
                           );
-                          // Convert the book price to double before passing it
                         },
                         style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.green),
@@ -345,6 +453,7 @@ class _BookDetailsState extends State<BookDetails> {
                       ),
                     ],
                   ),
+                  const SizedBox(height: 20),
                 ],
               ),
             ),

@@ -300,7 +300,7 @@ class LoginPagee extends StatelessWidget {
                                 ),
                               );
                             },
-                            child: const Text("Kayıt Ol"))
+                            child: Text("Kayıt Ol"))
                       ],
                     )
                   ],
