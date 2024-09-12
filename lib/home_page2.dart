@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:readswap/book_details.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:readswap/category.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:readswap/firebase/auth.dart';
 
@@ -32,19 +33,21 @@ class _HomePageState extends State<HomePage> {
   late Future<List<DocumentSnapshot>> bestBooksFuture;
   late Future<String?> userNameFuture;
   late Future<List<String>> selectedCategoriesFuture;
-  late Future<int> userCoinBalanceFuture;
-  late Future<List<DocumentSnapshot>> booksByCoinsFuture;
+  late Future<int> userCoinBalanceFuture; // New future for user coin balance
+  late Future<List<DocumentSnapshot>>
+      booksByCoinsFuture; // New future for books user can afford
 
   @override
   void initState() {
     super.initState();
     bestBooksFuture = _fetchBestBooks();
-    userNameFuture = Auth().getUsername();
-    selectedCategoriesFuture = _fetchSelectedCategories();
-    userCoinBalanceFuture = _fetchUserCoinBalance();
-    booksByCoinsFuture = userCoinBalanceFuture.then(
-      (coins) => _fetchBooksWithUserCoins(coins),
-    );
+    userNameFuture = Auth().getUsername(); // Fetch logged-in user's name
+    selectedCategoriesFuture =
+        _fetchSelectedCategories(); // Fetch user's selected categories
+    userCoinBalanceFuture =
+        _fetchUserCoinBalance(); // Fetch user's coin balance
+    booksByCoinsFuture = userCoinBalanceFuture.then((coins) =>
+        _fetchBooksWithUserCoins(coins)); // Fetch books based on coins
   }
 
   @override
@@ -55,11 +58,17 @@ class _HomePageState extends State<HomePage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Greeting Section
             _buildGreetingSection(),
+            // Search Bar
             _buildSearchBar(),
+            // Categories Section
             _buildCategoriesSection(),
+            // Best Books Section
             _buildBestBooksSection(),
+            // Recommended Books Section
             _buildRecommendedBooksSection(),
+            // Books based on Coins Section
             _buildBooksWithUserCoinsSection(),
           ],
         ),
@@ -261,6 +270,7 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  // Helper method for building a book card
   Widget _buildBookCard(Map<String, dynamic> book, String bookId) {
     return GestureDetector(
       onTap: () {
@@ -323,52 +333,43 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  Widget _buildRowText(String title) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 15.0, bottom: 10.0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // Helper methods for loading, error, and fetching data
   Widget _buildLoadingWidget() {
-    return const Center(child: CircularProgressIndicator());
+    return const Center(
+      child: CircularProgressIndicator(),
+    );
   }
 
   Widget _buildErrorWidget(String error) {
-    return Center(child: Text(error));
-  }
-
-  Widget _buildRowText(String text) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          text,
-          style: const TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-            color: Color(0xFF6C6C6C),
-          ),
-        ),
-        const Text(
-          "Daha Fazla",
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.bold,
-            color: Color(0xFF6C6C6C),
-          ),
-        ),
-      ],
+    return Center(
+      child: Text(error),
     );
   }
 
   Future<List<DocumentSnapshot>> _fetchBestBooks() async {
-    QuerySnapshot querySnapshot = await FirebaseFirestore.instance
-        .collection('Books')
-        .orderBy('CreatedAt', descending: true)
+    var firestore = FirebaseFirestore.instance;
+    QuerySnapshot querySnapshot = await firestore
+        .collection('books')
+        .orderBy('createdAt', descending: true)
         .limit(10)
-        .get();
-    return querySnapshot.docs;
-  }
-
-  Future<List<DocumentSnapshot>> _fetchRecommendedBooks(
-      List<String> selectedCategories) async {
-    QuerySnapshot querySnapshot = await FirebaseFirestore.instance
-        .collection('Books')
-        .where('CategoryId', whereIn: selectedCategories)
         .get();
     return querySnapshot.docs;
   }
@@ -376,45 +377,37 @@ class _HomePageState extends State<HomePage> {
   Future<int> _fetchUserCoinBalance() async {
     var currentUser = FirebaseAuth.instance.currentUser;
     var userDoc = await FirebaseFirestore.instance
-        .collection('Users')
+        .collection('users')
         .doc(currentUser?.uid)
         .get();
-
-    // coinBalance'ı int olarak döndürüyoruz
-    return (userDoc.data()?['coins'] ?? 0).toInt();
+    return userDoc.data()?['coinBalance'] ?? 0;
   }
 
   Future<List<DocumentSnapshot>> _fetchBooksWithUserCoins(int userCoins) async {
-    QuerySnapshot querySnapshot = await FirebaseFirestore.instance
-        .collection('Books')
-        .where('isActive', isEqualTo: true)
+    var firestore = FirebaseFirestore.instance;
+    QuerySnapshot querySnapshot = await firestore
+        .collection('books')
+        .where('coin', isLessThanOrEqualTo: userCoins)
         .get();
-
-    // Kitapları fiyatlarına göre filtreliyoruz
-    List<DocumentSnapshot> filteredBooks = querySnapshot.docs.where((doc) {
-      // 'BookPrice' alanını güvenli bir şekilde double'a dönüştürüyoruz
-      double? bookPrice = double.tryParse(doc['BookPrice'] ?? '0');
-
-      if (bookPrice == null) {
-        bookPrice = 0; // Eğer dönüşüm başarısız olursa 0 olarak kabul ediyoruz
-      }
-
-      // Kullanıcının coin miktarı ile kıyaslıyoruz
-      return bookPrice <=
-          userCoins.toDouble(); // Kullanıcı bakiyesini de double yapıyoruz
-    }).toList();
-    print("User Coin Balance: $userCoins");
-
-    return filteredBooks;
+    return querySnapshot.docs;
   }
 
   Future<List<String>> _fetchSelectedCategories() async {
-    User? user = FirebaseAuth.instance.currentUser;
-    DocumentSnapshot userDoc = await FirebaseFirestore.instance
-        .collection('Users')
-        .doc(user?.uid)
+    var currentUser = FirebaseAuth.instance.currentUser;
+    var userDoc = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(currentUser?.uid)
         .get();
+    return List<String>.from(userDoc.data()?['selectedCategories'] ?? []);
+  }
 
-    return List<String>.from(userDoc['selectedCategories'] ?? []);
+  Future<List<DocumentSnapshot>> _fetchRecommendedBooks(
+      List<String> selectedCategories) async {
+    var firestore = FirebaseFirestore.instance;
+    QuerySnapshot querySnapshot = await firestore
+        .collection('books')
+        .where('category', whereIn: selectedCategories)
+        .get();
+    return querySnapshot.docs;
   }
 }
