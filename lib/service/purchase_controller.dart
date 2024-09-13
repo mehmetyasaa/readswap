@@ -77,8 +77,6 @@ class _CheckoutPageState extends State<CheckoutPage> {
               DocumentReference bookRef = FirebaseFirestore.instance
                   .collection('Books')
                   .doc(widget.bookId);
-              DocumentReference orderRef =
-                  FirebaseFirestore.instance.collection('Orders').doc();
               DocumentReference userRef =
                   FirebaseFirestore.instance.collection('Users').doc(userId);
               DocumentReference sellerRef = FirebaseFirestore.instance
@@ -88,20 +86,25 @@ class _CheckoutPageState extends State<CheckoutPage> {
                   .collection('Address')
                   .doc(selectedAddressId);
 
+              // Users koleksiyonu altındaki Orders alt koleksiyonuna siparişi ekleyelim
+              DocumentReference orderRef = userRef.collection('Orders').doc();
+
               transaction.update(userRef, {'coins': userCoins - totalCost});
               transaction
                   .update(sellerRef, {'coins': sellerCoins + widget.price});
+
               transaction.set(orderRef, {
                 'Address': addressRef,
                 'Book': bookRef,
                 'OrderDate': FieldValue.serverTimestamp(),
-                'User': userRef,
                 'ShippingCost': widget.shippingCost,
                 'TotalCost': totalCost,
                 'OrderStatus': 'received',
+                'SellerId': widget.sellerId,
+                'Price': widget.price,
               });
 
-              // Update book status to inactive
+              // Kitap durumunu pasif yap
               transaction.update(bookRef, {'isActive': false});
             });
 

@@ -360,6 +360,7 @@ class _HomePageState extends State<HomePage> {
         .collection('Books')
         .orderBy('CreatedAt', descending: true)
         .limit(10)
+        .where('isActive', isEqualTo: true)
         .get();
     return querySnapshot.docs;
   }
