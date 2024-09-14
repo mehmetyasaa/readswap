@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:readswap/book_details.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:readswap/categorybookscreen.dart';
 import 'package:readswap/firebase/auth.dart';
 
 void main() {
@@ -61,6 +62,7 @@ class _HomePageState extends State<HomePage> {
             _buildBestBooksSection(),
             _buildRecommendedBooksSection(),
             _buildBooksWithUserCoinsSection(),
+            _buildLikedBooksSection(), // Buraya ekleyin
           ],
         ),
       ),
@@ -129,15 +131,28 @@ class _HomePageState extends State<HomePage> {
             child: ListView.builder(
               scrollDirection: Axis.horizontal,
               itemCount: 14,
-              itemBuilder: (context, index) => GestureDetector(
-                onTap: () {},
-                child: Image.asset(
-                  'assets/Category$index.png',
-                  width: 70,
-                  height: 70,
-                  fit: BoxFit.none,
-                ),
-              ),
+              itemBuilder: (context, index) {
+                // You can use a better way to handle categories and their images
+                String categoryName =
+                    '$index'; // Replace with actual category names
+                return GestureDetector(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) =>
+                            CategoryBooksScreen(category: categoryName),
+                      ),
+                    );
+                  },
+                  child: Image.asset(
+                    'assets/Category$index.png',
+                    width: 70,
+                    height: 70,
+                    fit: BoxFit.none,
+                  ),
+                );
+              },
             ),
           ),
         ],
@@ -224,6 +239,38 @@ class _HomePageState extends State<HomePage> {
                   return _buildBookList(recommendedBooks);
                 },
               );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLikedBooksSection() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildRowText("Beğenebileceğin Kitaplar"),
+          FutureBuilder<List<DocumentSnapshot>>(
+            future: _fetchRecommendedBasedOnPrevious(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return _buildLoadingWidget();
+              }
+              if (snapshot.hasError) {
+                return _buildErrorWidget('Error: ${snapshot.error}');
+              }
+              if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                return const Center(
+                    child: Text('Beğenebileceğiniz kitap bulunamadı.'));
+              }
+
+              List<DocumentSnapshot> likedBooks = snapshot.data!;
+              print("Recommended books function called");
+
+              return _buildBookList(likedBooks);
             },
           ),
         ],
@@ -362,6 +409,34 @@ class _HomePageState extends State<HomePage> {
         .limit(10)
         .where('isActive', isEqualTo: true)
         .get();
+    return querySnapshot.docs;
+  }
+
+//algoritma
+  Future<List<DocumentSnapshot>> _fetchRecommendedBasedOnPrevious() async {
+    print("Fetching recommended books...");
+
+    User? user = FirebaseAuth.instance.currentUser;
+
+    if (user == null) return [];
+
+    // Kullanıcının daha önce satın aldığı, beğendiği veya incelediği kitapları getiriyoruz
+    DocumentSnapshot userDoc = await FirebaseFirestore.instance
+        .collection('Users')
+        .doc(user.uid)
+        .get();
+
+    List<String> purchasedBooks =
+        List<String>.from(userDoc['purchasedBooks'] ?? []);
+    print(purchasedBooks);
+    // Satın alınan kitaplara göre benzer kitaplar getiriyoruz
+    QuerySnapshot querySnapshot = await FirebaseFirestore.instance
+        .collection('Books')
+        .where(FieldPath.documentId, whereIn: purchasedBooks)
+        // .where("CategoryId", )
+        .limit(10)
+        .get();
+    print("Fetched books count: ${querySnapshot.docs.length}");
     return querySnapshot.docs;
   }
 
