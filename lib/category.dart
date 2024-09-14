@@ -1,8 +1,115 @@
 import 'package:flutter/material.dart';
+import 'package:readswap/BookListScreen.dart';
 
-//
-//bu sayfadaki kategorilerdeki resimler ayarlanacak
-//
+class ListTileLearn extends StatefulWidget {
+  const ListTileLearn({Key? key}) : super(key: key);
+
+  @override
+  _ListTileLearnState createState() => _ListTileLearnState();
+}
+
+class _ListTileLearnState extends State<ListTileLearn> {
+  List<Map<String, String>> categories = [
+    {'title': 'Bilim', 'imagePath': 'assets/Category12.png'},
+    {'title': 'Edebiyat', 'imagePath': 'assets/Category0.png'},
+    {'title': 'Çocuk', 'imagePath': 'assets/Category1.png'},
+    {'title': 'Eğitim', 'imagePath': 'assets/Category2.png'},
+    {'title': 'Biyografi', 'imagePath': 'assets/Category3.png'},
+    {'title': 'Tarih', 'imagePath': 'assets/Category4.png'},
+    {'title': 'Roman', 'imagePath': 'assets/Category5.png'},
+    {'title': 'Polisiye', 'imagePath': 'assets/Category6.png'},
+    {'title': 'Otobiyografi', 'imagePath': 'assets/Category7.png'},
+    {'title': 'Savaş', 'imagePath': 'assets/Category8.png'},
+    {'title': 'Ev Yaşam', 'imagePath': 'assets/Category9.png'},
+    {'title': 'Makale', 'imagePath': 'assets/Category10.png'},
+    {'title': 'Aşk', 'imagePath': 'assets/Category11.png'},
+    {'title': 'Araştırma', 'imagePath': 'assets/Category12.png'},
+    {'title': 'En Sevilenler', 'imagePath': 'assets/Category12.png'},
+    {'title': 'Tiyatro', 'imagePath': 'assets/Category11.png'},
+  ];
+
+  List<Map<String, String>> filteredCategories = [];
+
+  @override
+  void initState() {
+    super.initState();
+    filteredCategories = categories; // Initially show all categories
+  }
+
+  void _filterCategories(String query) {
+    final results = categories.where((category) {
+      final titleLower = category['title']!.toLowerCase();
+      final searchLower = query.toLowerCase();
+      return titleLower.startsWith(searchLower);
+    }).toList();
+
+    setState(() {
+      filteredCategories = results;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        backgroundColor: const Color.fromARGB(185, 2, 201, 108),
+        title: const Text('Kategoriler'),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            Navigator.of(context).pop();
+          },
+        ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.search),
+            onPressed: () {
+              // Search functionality can be added here
+            },
+          ),
+        ],
+      ),
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: TextFormField(
+              decoration: InputDecoration(
+                hintText: "Kategori ara...",
+                border: OutlineInputBorder(
+                  borderSide: BorderSide(color: Colors.grey[300]!),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                prefixIcon: const Icon(Icons.search),
+                focusedBorder: OutlineInputBorder(
+                  borderSide: BorderSide(
+                    color: Colors.grey[300]!,
+                  ),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+              ),
+              cursorColor: const Color.fromARGB(255, 120, 120, 120),
+              onChanged: _filterCategories,
+            ),
+          ),
+          Expanded(
+            child: ListView.builder(
+              itemCount: filteredCategories.length,
+              itemBuilder: (context, index) {
+                final category = filteredCategories[index];
+                return CategoryTile(
+                  title: category['title']!,
+                  imagePath: category['imagePath']!,
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class CategoryTile extends StatelessWidget {
   final String title;
   final String imagePath;
@@ -20,135 +127,29 @@ class CategoryTile extends StatelessWidget {
       child: ListTile(
         title: Text(
           title,
-          style: TextStyle(
-            color: Color.fromARGB(255, 0, 0, 0),
-            fontSize: 20,
+          style: const TextStyle(
+            color: Colors.black,
+            fontSize: 16,
           ),
         ),
-        onTap: () {},
-        leading: Image.asset(
-          imagePath,
-          width: 70,
-          height: 70,
-        ),
-        trailing: Image.asset('assets/ok.png'),
-      ),
-    );
-  }
-}
-
-class ListTileLearn extends StatelessWidget {
-  const ListTileLearn({Key? key}) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Color.fromARGB(185, 2, 201, 108),
-        title: Text('Kategoriler'),
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back),
-          onPressed: () {
-            Navigator.of(context).pop();
-          },
-        ),
-        actions: [
-          IconButton(
-            icon: Icon(Icons.search),
-            onPressed: () {
-              // Buraya arama işlemleri ekleyebilirsiniz
-            },
-          ),
-        ],
-      ),
-      body: ListView(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: TextFormField(
-              decoration: InputDecoration(
-                hintText: "Kategori ara...",
-                border: OutlineInputBorder(
-                  borderSide: BorderSide(color: Colors.grey[300]!),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                prefixIcon: Icon(Icons.search),
-                focusedBorder: OutlineInputBorder(
-                  // Bu, odaklandığında çerçeve rengi
-                  borderSide: BorderSide(
-                    color: Colors.grey[300]!, // Odaklandığında çerçeve rengi
-                  ),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-              ),
-              cursorColor: const Color.fromARGB(255, 120, 120, 120),
+        onTap: () {
+          // Navigate to BookListScreen and pass the selected category
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (context) => BookListScreen(category: title),
             ),
+          );
+        },
+        leading: ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: Image.asset(
+            imagePath,
+            width: 50,
+            height: 50,
+            fit: BoxFit.contain,
           ),
-          const CategoryTile(
-            title: 'Bilim',
-            imagePath: 'assets/Category12.png',
-          ),
-          CategoryTile(
-            title: 'Edebiyat',
-            imagePath: 'assets/Category0.png',
-          ),
-          CategoryTile(
-            title: 'Çocuk',
-            imagePath: 'assets/Category1.png',
-          ),
-          CategoryTile(
-            title: 'Eğitim',
-            imagePath: 'assets/Category2.png',
-          ),
-          CategoryTile(
-            title: 'Biyografi',
-            imagePath: 'assets/Category3.png',
-          ),
-          CategoryTile(
-            title: 'Tarih',
-            imagePath: 'assets/Category4.png',
-          ),
-          CategoryTile(
-            title: 'Roman',
-            imagePath: 'assets/Category5.png',
-          ),
-          CategoryTile(
-            title: 'Polisiye',
-            imagePath: 'assets/Category6.png',
-          ),
-          CategoryTile(
-            title: 'Otobiyografi',
-            imagePath: 'assets/Category7.png',
-          ),
-          CategoryTile(
-            title: 'Savaş',
-            imagePath: 'assets/Category8.png',
-          ),
-          CategoryTile(
-            title: 'Ev Yaşam',
-            imagePath: 'assets/Category9.png',
-          ),
-          CategoryTile(
-            title: 'Makale',
-            imagePath: 'assets/Category10.png',
-          ),
-          CategoryTile(
-            title: 'Aşk',
-            imagePath: 'assets/Category11.png',
-          ),
-          CategoryTile(
-            title: 'Araştırma',
-            imagePath: 'assets/Category12.png',
-          ),
-          CategoryTile(
-            title: 'En Sevilenler',
-            imagePath: 'assets/Category12.png',
-          ),
-          CategoryTile(
-            title: 'Tiyatro',
-            imagePath: 'assets/Category11.png',
-          ),
-        ],
+        ),
+        trailing: const Icon(Icons.arrow_forward_ios),
       ),
     );
   }

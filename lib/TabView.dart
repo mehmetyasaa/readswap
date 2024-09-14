@@ -9,7 +9,8 @@ import 'package:readswap/privacyPolicy.dart';
 import 'package:readswap/product_add_page.dart';
 import 'package:readswap/settings.dart';
 import 'package:readswap/tab_models.dart';
-import 'package:readswap/ProfileUpdate.dart'; // Import the SettingsPage
+import 'package:readswap/ProfileUpdate.dart';
+import 'package:readswap/category.dart'; // Category sayfasını import et
 
 class TabView extends StatelessWidget {
   TabView({Key? key}) : super(key: key);
@@ -20,16 +21,16 @@ class TabView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final String userMail =
-        ModalRoute.of(context)?.settings.arguments as String? ??
-            'default@example.com';
+        ModalRoute.of(context)?.settings.arguments as String? ?? 
+        'default@example.com';
 
     return DefaultTabController(
       length: 4,
       child: Scaffold(
         floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
         floatingActionButton: FloatingActionButton(
-          backgroundColor: Color.fromARGB(0, 0, 0, 0),
-          shape: CircleBorder(),
+          backgroundColor: const Color.fromARGB(0, 0, 0, 0),
+          shape: const CircleBorder(),
           tooltip: 'Increment',
           onPressed: () {
             Navigator.of(context).pushReplacement(
@@ -86,9 +87,9 @@ class TabView extends StatelessWidget {
         bottomNavigationBar: BottomAppBar(
           notchMargin: 5,
           shape: const CircularNotchedRectangle(),
-          color: Color.fromARGB(255, 243, 243, 243),
+          color: const Color.fromARGB(255, 243, 243, 243),
           child: TabBar(
-            indicator: BoxDecoration(),
+            indicator: const BoxDecoration(),
             indicatorSize: TabBarIndicatorSize.tab,
             tabs: _items.map((e) => Tab(text: e.title, icon: e.icon)).toList(),
           ),
@@ -99,16 +100,14 @@ class TabView extends StatelessWidget {
 
   Widget MyDrawerList(BuildContext context) {
     return Container(
-      padding: EdgeInsets.only(top: 15),
+      padding: const EdgeInsets.only(top: 15),
       child: Column(
         children: [
           menuItem(context, 1, "Kategoriler", Icons.dashboard_outlined),
           menuItem(context, 2, "Kampanyalar", Icons.local_offer_outlined),
           menuItem(context, 3, "Kaydedilenler", Icons.book_outlined),
-          menuItem(
-              context, 4, "Gizlilik Politikası", Icons.privacy_tip_outlined),
-          menuItem(
-              context, 5, "Yardım ve Destek", Icons.question_mark_outlined),
+          menuItem(context, 4, "Gizlilik Politikası", Icons.privacy_tip_outlined),
+          menuItem(context, 5, "Yardım ve Destek", Icons.question_mark_outlined),
           menuItem(context, 6, "Ayarlar", Icons.settings_outlined),
           menuItem(context, 7, "Çıkış Yap", Icons.exit_to_app),
         ],
@@ -122,7 +121,12 @@ class TabView extends StatelessWidget {
         onTap: () {
           Navigator.pop(context);
           if (id == 1) {
+            // Kategoriler seçildiğinde Category sayfasına git
             currentPage = DrawerSections.kategoriler;
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => ListTileLearn()), // Kategorilere yönlendir
+            );
           } else if (id == 2) {
             currentPage = DrawerSections.kampanyalar;
           } else if (id == 3) {
@@ -151,21 +155,21 @@ class TabView extends StatelessWidget {
           }
         },
         child: Padding(
-          padding: EdgeInsets.all(15.0),
+          padding: const EdgeInsets.all(15.0),
           child: Row(
             children: [
               Expanded(
                 child: Icon(
                   icon,
                   size: 20,
-                  color: Color.fromARGB(255, 0, 0, 0),
+                  color: const Color.fromARGB(255, 0, 0, 0),
                 ),
               ),
               Expanded(
                 flex: 3,
                 child: Text(
                   title,
-                  style: TextStyle(
+                  style: const TextStyle(
                       color: Color.fromARGB(255, 0, 0, 0), fontSize: 16),
                 ),
               )

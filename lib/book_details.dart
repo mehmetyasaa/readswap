@@ -32,7 +32,6 @@ class _BookDetailsState extends State<BookDetails> {
         .doc(widget.bookId)
         .get();
 
-    // Get the average rating from the book document
     setState(() {
       _averageRating = bookDoc.data()?['averageRating']?.toDouble() ?? 0.0;
     });
@@ -304,38 +303,43 @@ class _BookDetailsState extends State<BookDetails> {
 
           return SingleChildScrollView(
             child: Padding(
-              padding: const EdgeInsets.all(8.0),
+              padding: const EdgeInsets.all(16.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  SizedBox(height: 10),
-
                   // Book Image
                   FutureBuilder<String>(
                     future: _getDownloadUrl(book['BookImage']),
                     builder: (context, urlSnapshot) {
-                      if (urlSnapshot.connectionState ==
-                          ConnectionState.waiting) {
+                      if (urlSnapshot.connectionState == ConnectionState.waiting) {
                         return const Center(child: CircularProgressIndicator());
                       }
 
                       if (urlSnapshot.hasError) {
-                        return Center(
-                            child: Text('Hata: ${urlSnapshot.error}'));
+                        return Center(child: Text('Hata: ${urlSnapshot.error}'));
                       }
 
                       if (!urlSnapshot.hasData || urlSnapshot.data!.isEmpty) {
-                        return Center(child: Text('Resim Bulunamadı'));
+                        return Center(child: Text('Resim Bulunamad'));
                       }
 
                       String imageUrl = urlSnapshot.data!;
                       return Center(
                         child: Container(
                           decoration: BoxDecoration(
-                            border: Border.all(
-                                color: Colors.blueAccent, width: 2.0),
+                            borderRadius: BorderRadius.circular(12.0),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black26,
+                                blurRadius: 8.0,
+                                offset: Offset(0, 4),
+                              ),
+                            ],
                           ),
-                          child: Image.network(imageUrl, height: 300),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(12.0),
+                            child: Image.network(imageUrl, height: 300, fit: BoxFit.cover),
+                          ),
                         ),
                       );
                     },
@@ -345,7 +349,11 @@ class _BookDetailsState extends State<BookDetails> {
                   // Author Name
                   Text(
                     book['BookWriter'] ?? 'Bilinmeyen',
-                    style: const TextStyle(fontSize: 18, color: Colors.green),
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                    ),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 10),
@@ -360,20 +368,19 @@ class _BookDetailsState extends State<BookDetails> {
                         direction: Axis.horizontal,
                         allowHalfRating: true,
                         itemCount: 5,
-                        itemPadding:
-                            const EdgeInsets.symmetric(horizontal: 4.0),
+                        itemPadding: const EdgeInsets.symmetric(horizontal: 4.0),
                         itemBuilder: (context, _) => const Icon(
                           Icons.star,
                           color: Colors.amber,
                         ),
                         onRatingUpdate: (rating) {
-                          // You can optionally handle rating updates here
+                          // Optional: handle rating update here
                         },
                       ),
-                      SizedBox(width: 5),
+                      SizedBox(width: 8),
                       Text(
                         _averageRating.toStringAsFixed(1),
-                        style: TextStyle(fontSize: 16),
+                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                       ),
                     ],
                   ),
@@ -383,75 +390,128 @@ class _BookDetailsState extends State<BookDetails> {
                   const Text(
                     'ReadSwap Pazarlama',
                     textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: 16, fontStyle: FontStyle.italic),
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontStyle: FontStyle.italic,
+                      color: Colors.grey,
+                    ),
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 20),
 
                   // Expansion Tiles for Description, Questions, Return Policies, and Comments
                   ExpansionTile(
                     title: const Text('Ürün Açıklaması'),
                     children: [
                       Padding(
-                        padding: const EdgeInsets.all(8.0),
-                        child: Text(book['BookDescription'] ?? ''),
+                        padding: const EdgeInsets.all(16.0),
+                        child: Text(
+                          book['BookDescription'] ?? 'Açıklama bulunamadı.',
+                          style: TextStyle(fontSize: 16),
+                        ),
                       ),
                     ],
                   ),
                   const ExpansionTile(
-                    title: Text('Soru&Cevap'),
+                    title: Text('Soru & Cevap'),
                     children: [
                       // Add relevant question and answer widgets
+                      Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Text('Henüz soru yok. Sorunuzu yazın!'),
+                      ),
                     ],
                   ),
                   const ExpansionTile(
-                    title: Text('İptal ve İade koşulları'),
+                    title: Text('İptal ve İade Koşulları'),
                     children: [
                       // Add return policy content
+                      Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Text('İptal ve iade koşulları hakkında bilgi bulunamadı.'),
+                      ),
                     ],
                   ),
                   _buildCommentsSection(),
                   const SizedBox(height: 20),
 
                   // Price and Buttons
-                  Text(
-                    book['BookPrice'] + " RS Coin" ?? 'Bulunamadı',
-                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 20),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      ElevatedButton(
-                        onPressed: () {
-                          // Action for Teklif Ver
-                        },
-                        style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.red),
-                        child: const Text('Teklif Ver'),
-                      ),
-                      ElevatedButton(
-                        onPressed: () {
-                          double bookPrice =
-                              double.tryParse(book['BookPrice']) ?? 0.0;
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                                builder: (context) => CheckoutPage(
-                                      bookId: widget.bookId,
-                                      sellerId:
-                                          (book['UserId'] as DocumentReference)
-                                              .id,
-                                      price: bookPrice,
-                                      shippingCost: 100,
-                                    )),
-                          );
-                        },
-                        style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.green),
-                        child: const Text('Satın Al'),
-                      ),
-                    ],
+                  Container(
+                    padding: const EdgeInsets.all(16.0),
+                    decoration: BoxDecoration(
+                      color: Colors.blueGrey[50],
+                      borderRadius: BorderRadius.circular(12.0),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black26,
+                          blurRadius: 8.0,
+                          offset: Offset(0, 4),
+                        ),
+                      ],
+                    ),
+                    child: Column(
+                      children: [
+                        Text(
+                          '${book['BookPrice']} RS Coin',
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.green,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        const SizedBox(height: 20),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: [
+                            ElevatedButton(
+                              onPressed: () {
+                                // Action for Teklif Ver
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.red,
+                                padding: EdgeInsets.symmetric(horizontal: 20),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12.0),
+                                ),
+                              ),
+                              child: const Text(
+                                'Teklif Ver',
+                                style: TextStyle(color: Colors.white, fontSize: 16),
+                              ),
+                            ),
+                            ElevatedButton(
+                              onPressed: () {
+                                double bookPrice =
+                                    double.tryParse(book['BookPrice']) ?? 0.0;
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                      builder: (context) => CheckoutPage(
+                                            bookId: widget.bookId,
+                                            sellerId:
+                                                (book['UserId'] as DocumentReference)
+                                                    .id,
+                                            price: bookPrice,
+                                            shippingCost: 100,
+                                          )),
+                                );
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.green,
+                                padding: EdgeInsets.symmetric(horizontal: 20),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12.0),
+                                ),
+                              ),
+                              child: const Text(
+                                'Satın Al',
+                                style: TextStyle(color: Colors.white, fontSize: 16),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
                   const SizedBox(height: 20),
                 ],

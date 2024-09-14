@@ -5,8 +5,7 @@ import 'package:readswap/book_details.dart'; // Ensure this import is correct fo
 class CategoryBooksScreen extends StatelessWidget {
   final String category;
 
-  const CategoryBooksScreen({Key? key, required this.category})
-      : super(key: key);
+  const CategoryBooksScreen({Key? key, required this.category}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
