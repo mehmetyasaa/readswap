@@ -7,7 +7,6 @@ class CategorySelectionPage extends StatefulWidget {
   const CategorySelectionPage({super.key});
 
   @override
-  // ignore: library_private_types_in_public_api
   _CategorySelectionPageState createState() => _CategorySelectionPageState();
 }
 
@@ -42,10 +41,10 @@ class _CategorySelectionPageState extends State<CategorySelectionPage> {
         padding: const EdgeInsets.all(16.0),
         child: GridView.builder(
           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 2,
+            crossAxisCount: 3, // Daha fazla sütun
             crossAxisSpacing: 16.0,
             mainAxisSpacing: 16.0,
-            childAspectRatio: 3 / 2,
+            childAspectRatio: 1.0, // Çocukların en-boy oranı
           ),
           itemCount: categories.length,
           itemBuilder: (context, index) {
@@ -73,19 +72,15 @@ class _CategorySelectionPageState extends State<CategorySelectionPage> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () async {
-          // Kullanıcı kimliği al
           final user = FirebaseAuth.instance.currentUser;
           if (user != null) {
-            // Firestore'daki kullanıcı verisini güncelle
             final userDoc =
                 FirebaseFirestore.instance.collection('Users').doc(user.uid);
 
-            // Seçilen kategorileri kullanıcının dökümanına ekle
             await userDoc.update({
               'selectedCategories': selectedCategories,
             });
 
-            // TabView sayfasına yönlendir
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(builder: (context) => TabView()),
@@ -118,23 +113,30 @@ class CategoryTile extends StatelessWidget {
         borderRadius: BorderRadius.circular(12.0),
       ),
       child: Stack(
+        alignment: Alignment.center,
         children: [
           Positioned.fill(
-            child: Image.asset(
-              imagePath,
-              fit: BoxFit.cover,
+            child: Align(
+              alignment: Alignment.center,
+              child: SizedBox(
+                width: 50.0, // İkon genişliği
+                height: 50.0, // İkon yüksekliği
+                child: Image.asset(
+                  imagePath,
+                  fit: BoxFit.contain,
+                ),
+              ),
             ),
           ),
           Align(
             alignment: Alignment.bottomCenter,
             child: Container(
-              color: Colors.black54,
               padding: const EdgeInsets.all(8.0),
               child: Text(
                 title,
                 style: const TextStyle(
-                  fontSize: 18,
-                  color: Colors.white,
+                  fontSize: 14, // Küçük font boyutu
+                  color: Colors.black, // Siyah yazı rengi
                   fontWeight: FontWeight.bold,
                 ),
                 textAlign: TextAlign.center,

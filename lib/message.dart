@@ -1,49 +1,80 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:readswap/TabView.dart';
+import 'package:readswap/home_page.dart';
 
-void main() => runApp(SocialMedia());
+void main() {
+  runApp(MyApp());
+}
 
-class SocialMedia extends StatelessWidget {
+class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      home: HomeScreen(),
+      home: SocialMedia(),
+      routes: {
+        '/home': (context) => HomePage(), // Yeni rota tanımlaması
+      },
     );
   }
 }
 
-class HomeScreen extends StatefulWidget {
+class SocialMedia extends StatefulWidget {
   @override
-  _HomeScreenState createState() => _HomeScreenState();
+  _PostPageState createState() => _PostPageState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
-  List<Post> posts = [
-    Post(
-      username: 'sametsargin',
-      bookTitle: 'Sait Faik Abasıyanık - Lüzumsuz Adam',
-      quote: 'Bu koca şehir, ne kadar birbirine yabancı insanlarla dolu.',
-    ),
-    Post(
-      username: 'mehmetyasa',
-      bookTitle: 'Oğuz Atay - Tutunamayanlar',
-      quote:
-          'Başkalarının yaptıklarını silmeye çalıştım. Mürekkeple yazmışlar. Oysa ben kurşun kalem silgisiydim, azaldığımla kaldım.',
-    ),
-    Post(
-      username: 'umutemel',
-      bookTitle: 'Franz Kafka - Dönüşüm',
-      quote: 'Herkes beraberinde taşıdığı bir parmaklığın ardında yaşıyor.',
-    ),
-  ];
+class _PostPageState extends State<SocialMedia> {
+  Future<String?>? userNameFuture;
+  Future<List<DocumentSnapshot>>? postsFuture;
 
-  List<Post> mostLikedPosts() {
-    List<Post> sortedPosts = List.from(posts);
-    sortedPosts.sort((a, b) => b.likes.compareTo(a.likes));
-    return sortedPosts;
+  @override
+  void initState() {
+    super.initState();
+    userNameFuture = _getUserName();
+    postsFuture = _fetchPosts(); // Initialize postsFuture
   }
 
-  bool showMostLiked = false;
+  Future<String?> _getUserName() async {
+    User? user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      DocumentSnapshot userDoc = await FirebaseFirestore.instance
+          .collection('Users')
+          .doc(user.uid)
+          .get();
+      return userDoc['username'] as String?;
+    }
+    return null;
+  }
+
+  Future<List<DocumentSnapshot>> _fetchPosts() async {
+    QuerySnapshot querySnapshot = await FirebaseFirestore.instance
+        .collection('posts')
+        .orderBy('createdAt', descending: true)
+        .get();
+    return querySnapshot.docs;
+  }
+
+  Future<void> _updateLikes(String postId, int currentLikes) async {
+    await FirebaseFirestore.instance.collection('posts').doc(postId).update({
+      'likes': currentLikes + 1,
+    });
+  }
+
+  Future<void> _addComment(String postId, String comment) async {
+    var currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser != null) {
+      await FirebaseFirestore.instance.collection('posts').doc(postId).update({
+        'comments': FieldValue.arrayUnion([
+          {
+            'username': currentUser.displayName ?? 'Unknown',
+            'comment': comment,
+            'timestamp': Timestamp.now()
+          }
+        ]),
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -52,220 +83,193 @@ class _HomeScreenState extends State<HomeScreen> {
         leading: IconButton(
           icon: Icon(Icons.arrow_back),
           onPressed: () {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(
-                  builder: (context) =>
-                      TabView()), // TabView sayfasına yönlendirme
-            );
+            Navigator.of(context).pushReplacementNamed('/home'); // Yönlendirme
           },
         ),
-        title: Text('ReadSwap'),
-        actions: [
-          IconButton(
-            icon: Icon(Icons.notifications),
-            onPressed: () {},
-          ),
-        ],
+        title: Text("Post Sayfası"),
       ),
-      body: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                ElevatedButton(
-                  onPressed: () {
-                    setState(() {
-                      showMostLiked = false;
-                    });
-                  },
-                  child: Text('Öne Çıkanlar'),
-                ),
-                ElevatedButton(
-                  onPressed: () {
-                    setState(() {
-                      showMostLiked = true;
-                    });
-                  },
-                  child: Text('En Beğenilen'),
-                ),
-              ],
-            ),
-          ),
-          Expanded(
-            child: ListView(
-              children: showMostLiked
-                  ? mostLikedPosts()
-                      .map((post) => PostWidget(post: post))
-                      .toList()
-                  : posts.map((post) => PostWidget(post: post)).toList(),
-            ),
-          ),
-        ],
+      body: FutureBuilder<List<DocumentSnapshot>>(
+        future: postsFuture,
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return Center(child: CircularProgressIndicator());
+          }
+          if (snapshot.hasError) {
+            return Center(child: Text('Error: ${snapshot.error}'));
+          }
+          if (!snapshot.hasData || snapshot.data!.isEmpty) {
+            return Center(child: Text('No posts available.'));
+          }
+
+          List<DocumentSnapshot> posts = snapshot.data!;
+          return ListView.builder(
+            itemCount: posts.length,
+            itemBuilder: (context, index) {
+              var post = posts[index].data() as Map<String, dynamic>;
+              return _buildPostCard(post, posts[index].id);
+            },
+          );
+        },
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        items: [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home),
-            label: 'Anasayfa',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.shopping_cart),
-            label: 'Sepet',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.search),
-            label: 'Ara',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person),
-            label: 'Profil',
-          ),
-        ],
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          showDialog(
+            context: context,
+            builder: (BuildContext context) {
+              String title = '';
+              String quote = '';
+              return AlertDialog(
+                title: Text('Yeni Alıntı Ekle'),
+                content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextField(
+                      decoration: InputDecoration(labelText: 'Alıntı Başlığı'),
+                      onChanged: (value) {
+                        title = value;
+                      },
+                    ),
+                    TextField(
+                      decoration: InputDecoration(labelText: 'Alıntı'),
+                      onChanged: (value) {
+                        quote = value;
+                      },
+                    ),
+                  ],
+                ),
+                actions: [
+                  TextButton(
+                    child: Text('İptal'),
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                    },
+                  ),
+                  TextButton(
+                    child: Text('Kaydet'),
+                    onPressed: () async {
+                      String? username = await userNameFuture;
+                      if (username != null) {
+                        await FirebaseFirestore.instance
+                            .collection('posts')
+                            .add({
+                          'username': username,
+                          'quote': quote,
+                          'title': title,
+                          'likes': 0,
+                          'comments': [],
+                          'createdAt': Timestamp.now(), // Eklenen zaman damgası
+                        });
+                        setState(() {
+                          postsFuture = _fetchPosts(); // Listeyi yeniden yükle
+                        });
+                        Navigator.of(context).pop();
+                      }
+                    },
+                  ),
+                ],
+              );
+            },
+          );
+        },
+        child: Icon(Icons.add),
       ),
     );
   }
-}
 
-class Post {
-  final String username;
-  final String bookTitle;
-  final String quote;
-  int likes;
-  int comments;
-  int shares;
-
-  Post({
-    required this.username,
-    required this.bookTitle,
-    required this.quote,
-    this.likes = 0,
-    this.comments = 0,
-    this.shares = 0,
-  });
-}
-
-class PostWidget extends StatefulWidget {
-  final Post post;
-
-  const PostWidget({Key? key, required this.post}) : super(key: key);
-
-  @override
-  _PostWidgetState createState() => _PostWidgetState();
-}
-
-class _PostWidgetState extends State<PostWidget> {
-  bool isLiked = false;
-
-  void toggleLike() {
-    setState(() {
-      if (isLiked) {
-        widget.post.likes--;
-      } else {
-        widget.post.likes++;
-      }
-      isLiked = !isLiked;
-    });
-  }
-
-  void addComment() async {
-    TextEditingController commentController = TextEditingController();
-    String? result = await showDialog<String>(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text('Yorum Yap'),
-          content: TextField(
-            controller: commentController,
-            decoration: InputDecoration(hintText: 'Yorumunuzu yazın'),
-          ),
-          actions: <Widget>[
-            TextButton(
-              child: Text('İptal'),
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-            ),
-            TextButton(
-              child: Text('Gönder'),
-              onPressed: () {
-                Navigator.of(context).pop(commentController.text);
-              },
-            ),
-          ],
-        );
-      },
-    );
-
-    if (result != null && result.isNotEmpty) {
-      setState(() {
-        widget.post.comments++;
-      });
-      // Burada yorumunuzu kaydedebilirsiniz veya başka bir işlem yapabilirsiniz.
-      print('Yapılan Yorum: $result');
-    }
-  }
-
-  void sharePost() {
-    setState(() {
-      widget.post.shares++;
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
+  Widget _buildPostCard(Map<String, dynamic> post, String postId) {
     return Card(
       margin: EdgeInsets.all(8.0),
       child: Padding(
-        padding: const EdgeInsets.all(8.0),
+        padding: EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                CircleAvatar(
-                  child: Icon(Icons.person),
-                ),
-                SizedBox(width: 8.0),
-                Text(widget.post.username),
-              ],
-            ),
-            SizedBox(height: 8.0),
             Text(
-              widget.post.bookTitle,
-              style: TextStyle(fontWeight: FontWeight.bold),
+              post['title'] ?? 'Başlık Yok',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
-            SizedBox(height: 8.0),
-            Text(widget.post.quote),
-            SizedBox(height: 8.0),
+            SizedBox(height: 8),
+            Text(post['quote'] ?? 'Alıntı Yok'),
+            SizedBox(height: 8),
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
                 IconButton(
-                  icon: Icon(
-                    isLiked ? Icons.favorite : Icons.favorite_border,
-                    color: isLiked ? Colors.red : null,
-                  ),
-                  onPressed: toggleLike,
+                  icon: Icon(Icons.thumb_up),
+                  onPressed: () async {
+                    int currentLikes = post['likes'] ?? 0;
+                    await _updateLikes(postId, currentLikes);
+                    setState(() {
+                      postsFuture = _fetchPosts(); // Listeyi güncelle
+                    });
+                  },
                 ),
-                Text(widget.post.likes.toString()),
                 IconButton(
                   icon: Icon(Icons.comment),
-                  onPressed: addComment,
+                  onPressed: () {
+                    showDialog(
+                      context: context,
+                      builder: (BuildContext context) {
+                        String comment = '';
+                        return AlertDialog(
+                          title: Text('Yorum Ekle'),
+                          content: TextField(
+                            decoration:
+                                InputDecoration(labelText: 'Yorumunuzu yazın'),
+                            onChanged: (value) {
+                              comment = value;
+                            },
+                          ),
+                          actions: [
+                            TextButton(
+                              child: Text('İptal'),
+                              onPressed: () {
+                                Navigator.of(context).pop();
+                              },
+                            ),
+                            TextButton(
+                              child: Text('Kaydet'),
+                              onPressed: () async {
+                                await _addComment(postId, comment);
+                                setState(() {
+                                  postsFuture =
+                                      _fetchPosts(); // Listeyi güncelle
+                                });
+                                Navigator.of(context).pop();
+                              },
+                            ),
+                          ],
+                        );
+                      },
+                    );
+                  },
                 ),
-                Text(widget.post.comments.toString()),
-                IconButton(
-                  icon: Icon(Icons.share),
-                  onPressed: sharePost,
-                ),
-                Text(widget.post.shares.toString()),
               ],
             ),
+            Text('Beğeni: ${post['likes'] ?? 0}'),
+            SizedBox(height: 8),
+            _buildCommentsSection(post['comments']),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildCommentsSection(List<dynamic>? comments) {
+    if (comments == null || comments.isEmpty) {
+      return Text('Yorum Yok');
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: comments.map<Widget>((comment) {
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 4.0),
+          child: Text(
+            '${comment['username']}: ${comment['comment']}',
+            style: TextStyle(color: Colors.grey[700]),
+          ),
+        );
+      }).toList(),
     );
   }
 }
