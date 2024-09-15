@@ -12,21 +12,21 @@ class CategorySelectionPage extends StatefulWidget {
 
 class _CategorySelectionPageState extends State<CategorySelectionPage> {
   List<String> categories = [
-    'Bilim',
+    'Tiyatro'
     'Edebiyat',
-    'Çocuk',
-    'Eğitim',
-    'Biyografi',
     'Tarih',
+    'Çocuk',
+    'Biyografi',
+    'Eğitim',
     'Roman',
     'Polisiye',
     'Otobiyografi',
-    'Savaş',
-    'Ev Yaşam',
     'Makale',
+    'Ev Yaşam',
+    'Savaş',
     'Aşk',
     'Araştırma',
-    'Tiyatro'
+    'Bilim',
   ];
 
   List<String> selectedCategories = []; // Seçilen kategoriler

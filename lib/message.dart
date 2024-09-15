@@ -2,6 +2,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:readswap/home_page.dart';
+import 'package:readswap/CartPage.dart';
+import 'package:readswap/sold_book_page.dart';
+import 'package:readswap/profile.dart';
 
 void main() {
   runApp(MyApp());
@@ -11,20 +14,74 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      home: SocialMedia(),
+      home: MainTabView(),
       routes: {
-        '/home': (context) => HomePage(), // Yeni rota tanımlaması
+        '/home': (context) => HomePage(),
+        '/mostLiked': (context) => MostLikedPostsPage(), // Route for most liked posts
       },
+    );
+  }
+}
+
+class MainTabView extends StatefulWidget {
+  @override
+  _MainTabViewState createState() => _MainTabViewState();
+}
+
+class _MainTabViewState extends State<MainTabView> {
+  int _selectedIndex = 0;
+
+  final List<Widget> _pages = [
+    SocialMedia(),
+    CartPage(),
+    SoldBooksPage(),
+    ProfilePage(),
+  ];
+
+  void _onItemTapped(int index) {
+    setState(() {
+      _selectedIndex = index;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: _pages[_selectedIndex],
+      bottomNavigationBar: BottomNavigationBar(
+        items: [
+          BottomNavigationBarItem(
+            icon: Icon(Icons.home_outlined),
+            label: "Anasayfa",
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.shopping_cart_outlined),
+            label: "Sepet",
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.search_outlined),
+            label: "Ara",
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.person_outline_outlined),
+            label: "Profil",
+          ),
+        ],
+        currentIndex: _selectedIndex,
+        selectedItemColor: Color(0xFF529471),
+        unselectedItemColor: Colors.grey,
+        onTap: _onItemTapped,
+      ),
     );
   }
 }
 
 class SocialMedia extends StatefulWidget {
   @override
-  _PostPageState createState() => _PostPageState();
+  _SocialMediaState createState() => _SocialMediaState();
 }
 
-class _PostPageState extends State<SocialMedia> {
+class _SocialMediaState extends State<SocialMedia> {
   Future<String?>? userNameFuture;
   Future<List<DocumentSnapshot>>? postsFuture;
 
@@ -32,7 +89,7 @@ class _PostPageState extends State<SocialMedia> {
   void initState() {
     super.initState();
     userNameFuture = _getUserName();
-    postsFuture = _fetchPosts(); // Initialize postsFuture
+    postsFuture = _fetchPosts();
   }
 
   Future<String?> _getUserName() async {
@@ -55,38 +112,77 @@ class _PostPageState extends State<SocialMedia> {
     return querySnapshot.docs;
   }
 
-  Future<void> _updateLikes(String postId, int currentLikes) async {
-    await FirebaseFirestore.instance.collection('posts').doc(postId).update({
-      'likes': currentLikes + 1,
-    });
+  Future<void> _updateLikes(String postId, int currentLikes, bool isLiked) async {
+    User? currentUser = FirebaseAuth.instance.currentUser;
+
+    if (currentUser != null) {
+      String uid = currentUser.uid;
+
+      DocumentReference postRef =
+          FirebaseFirestore.instance.collection('posts').doc(postId);
+
+      if (isLiked) {
+        await postRef.update({
+          'likes': currentLikes - 1,
+          'likedBy': FieldValue.arrayRemove([uid])
+        });
+      } else {
+        await postRef.update({
+          'likes': currentLikes + 1,
+          'likedBy': FieldValue.arrayUnion([uid])
+        });
+      }
+    }
   }
 
   Future<void> _addComment(String postId, String comment) async {
     var currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser != null) {
+      DocumentSnapshot userDoc = await FirebaseFirestore.instance
+          .collection('Users')
+          .doc(currentUser.uid)
+          .get();
+      String username = userDoc['username'] ?? 'Bilinmeyen Kullanıcı';
+
       await FirebaseFirestore.instance.collection('posts').doc(postId).update({
-        'comments': FieldValue.arrayUnion([
-          {
-            'username': currentUser.displayName ?? 'Unknown',
-            'comment': comment,
-            'timestamp': Timestamp.now()
-          }
-        ]),
+        'comments': FieldValue.arrayUnion([{
+          'username': username,
+          'comment': comment,
+          'timestamp': Timestamp.now()
+        }]),
       });
     }
+  }
+
+  bool _hasUserLikedPost(List<dynamic>? likedBy) {
+    User? currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser != null && likedBy != null) {
+      return likedBy.contains(currentUser.uid);
+    }
+    return false;
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        title: Text("Readswap"),
+        backgroundColor: Color(0xFF529471),
+        centerTitle: true, // Center the title
         leading: IconButton(
           icon: Icon(Icons.arrow_back),
           onPressed: () {
-            Navigator.of(context).pushReplacementNamed('/home'); // Yönlendirme
+            Navigator.of(context).pushReplacementNamed('/home');
           },
         ),
-        title: Text("Post Sayfası"),
+        actions: [
+          IconButton(
+            icon: Icon(Icons.notifications),
+            onPressed: () {
+              // Add notification functionality here
+            },
+          ),
+        ],
       ),
       body: FutureBuilder<List<DocumentSnapshot>>(
         future: postsFuture,
@@ -157,10 +253,11 @@ class _PostPageState extends State<SocialMedia> {
                           'title': title,
                           'likes': 0,
                           'comments': [],
-                          'createdAt': Timestamp.now(), // Eklenen zaman damgası
+                          'likedBy': [],
+                          'createdAt': Timestamp.now(),
                         });
                         setState(() {
-                          postsFuture = _fetchPosts(); // Listeyi yeniden yükle
+                          postsFuture = _fetchPosts();
                         });
                         Navigator.of(context).pop();
                       }
@@ -172,104 +269,122 @@ class _PostPageState extends State<SocialMedia> {
           );
         },
         child: Icon(Icons.add),
+        backgroundColor: Color(0xFF529471),
       ),
     );
   }
 
   Widget _buildPostCard(Map<String, dynamic> post, String postId) {
+    List<dynamic> likedBy = post['likedBy'] ?? [];
+    bool isLiked = _hasUserLikedPost(likedBy);
+
     return Card(
-      margin: EdgeInsets.all(8.0),
+      margin: EdgeInsets.all(10.0),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12.0),
+        side: BorderSide(color: Color(0xFF529471)),
+      ),
+      elevation: 5,
       child: Padding(
         padding: EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              post['title'] ?? 'Başlık Yok',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            SizedBox(height: 8),
-            Text(post['quote'] ?? 'Alıntı Yok'),
-            SizedBox(height: 8),
             Row(
               children: [
-                IconButton(
-                  icon: Icon(Icons.thumb_up),
-                  onPressed: () async {
-                    int currentLikes = post['likes'] ?? 0;
-                    await _updateLikes(postId, currentLikes);
-                    setState(() {
-                      postsFuture = _fetchPosts(); // Listeyi güncelle
-                    });
-                  },
+                CircleAvatar(
+                  backgroundColor: Color(0xFF529471),
+                  child: Text(
+                    post['username'] != null
+                        ? post['username'][0].toUpperCase()
+                        : '?',
+                    style: TextStyle(color: Colors.white),
+                  ),
                 ),
-                IconButton(
-                  icon: Icon(Icons.comment),
-                  onPressed: () {
-                    showDialog(
-                      context: context,
-                      builder: (BuildContext context) {
-                        String comment = '';
-                        return AlertDialog(
-                          title: Text('Yorum Ekle'),
-                          content: TextField(
-                            decoration:
-                                InputDecoration(labelText: 'Yorumunuzu yazın'),
-                            onChanged: (value) {
-                              comment = value;
-                            },
-                          ),
-                          actions: [
-                            TextButton(
-                              child: Text('İptal'),
-                              onPressed: () {
-                                Navigator.of(context).pop();
-                              },
-                            ),
-                            TextButton(
-                              child: Text('Kaydet'),
-                              onPressed: () async {
-                                await _addComment(postId, comment);
-                                setState(() {
-                                  postsFuture =
-                                      _fetchPosts(); // Listeyi güncelle
-                                });
-                                Navigator.of(context).pop();
-                              },
-                            ),
-                          ],
-                        );
-                      },
-                    );
-                  },
+                SizedBox(width: 12),
+                Text(
+                  post['username'] ?? 'Kullanıcı Adı Yok',
+                  style: TextStyle(
+                      fontWeight: FontWeight.bold, color: Color(0xFF529471)),
                 ),
               ],
             ),
-            Text('Beğeni: ${post['likes'] ?? 0}'),
-            SizedBox(height: 8),
-            _buildCommentsSection(post['comments']),
+            SizedBox(height: 10),
+            Text(
+              post['title'] ?? '',
+              style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF529471),
+                  fontSize: 16),
+            ),
+            SizedBox(height: 10),
+            Text(post['quote'] ?? ''),
+            SizedBox(height: 10),
+            Row(
+              children: [
+                IconButton(
+                  icon: Icon(
+                    isLiked ? Icons.favorite : Icons.favorite_border,
+                    color: isLiked ? Colors.red : null,
+                  ),
+                  onPressed: () {
+                    _updateLikes(postId, post['likes'] ?? 0, isLiked);
+                    setState(() {
+                      postsFuture = _fetchPosts();
+                    });
+                  },
+                ),
+                Text('${post['likes'] ?? 0}'),
+              ],
+            ),
+            SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    decoration: InputDecoration(
+                      hintText: 'Yorum ekle...',
+                    ),
+                    onSubmitted: (comment) {
+                      _addComment(postId, comment);
+                      setState(() {
+                        postsFuture = _fetchPosts();
+                      });
+                    },
+                  ),
+                ),
+                SizedBox(width: 10),
+                IconButton(
+                  icon: Icon(Icons.send),
+                  onPressed: () {}, // Optional: you can add functionality if needed
+                ),
+              ],
+            ),
           ],
         ),
       ),
     );
   }
+}
 
-  Widget _buildCommentsSection(List<dynamic>? comments) {
-    if (comments == null || comments.isEmpty) {
-      return Text('Yorum Yok');
-    }
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: comments.map<Widget>((comment) {
-        return Padding(
-          padding: const EdgeInsets.symmetric(vertical: 4.0),
-          child: Text(
-            '${comment['username']}: ${comment['comment']}',
-            style: TextStyle(color: Colors.grey[700]),
-          ),
-        );
-      }).toList(),
+
+class MostLikedPostsPage extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text("En Çok Beğenilenler"),
+        backgroundColor: Color(0xFF529471),
+        centerTitle: true, // Center the title
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back),
+          onPressed: () {
+            Navigator.pop(context); // Navigate back to HomePage
+          },
+        ),
+      ),
+      body: Center(child: Text('Most Liked Posts Page')), // Placeholder for the actual implementation
     );
   }
 }

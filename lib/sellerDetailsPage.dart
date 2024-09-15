@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -27,7 +28,12 @@ class _SellerOrderDetailPageState extends State<SellerOrderDetailPage> {
 
   Future<Map<String, dynamic>> _fetchOrderDetails() async {
     try {
+      String userId = FirebaseAuth.instance.currentUser!.uid;
+
+      // Fetch order details from the user's 'Orders' subcollection
       DocumentSnapshot orderSnapshot = await FirebaseFirestore.instance
+          .collection('Users')
+          .doc(userId)
           .collection('Orders')
           .doc(widget.orderId)
           .get();
@@ -59,9 +65,12 @@ class _SellerOrderDetailPageState extends State<SellerOrderDetailPage> {
 
   Future<void> _updateOrderStatus() async {
     try {
+      String userId = FirebaseAuth.instance.currentUser!.uid;
       String trackingNumber = _trackingNumberController.text;
 
       await FirebaseFirestore.instance
+          .collection('Users')
+          .doc(userId)
           .collection('Orders')
           .doc(widget.orderId)
           .update({
@@ -143,6 +152,8 @@ class _SellerOrderDetailPageState extends State<SellerOrderDetailPage> {
                 SizedBox(height: 16.0),
 
                 // Shipping Information
+               
+
                 _buildShippingCompanyDropdown(),
                 TextField(
                   controller: _trackingNumberController,

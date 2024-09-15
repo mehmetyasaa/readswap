@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:readswap/CartPage.dart';
 import 'package:readswap/home_page.dart';
 import 'package:readswap/orderpage.dart';
 import 'package:readswap/profile.dart';
@@ -18,7 +19,7 @@ class TabModels {
   TabModels.create() {
     tabItems = [
       _TabModel(HomePage(), icon: Icon(Icons.home_outlined), title: "Anasayfa"),
-      _TabModel(OrderPage(),
+      _TabModel(CartPage(),
           icon: Icon(Icons.shopping_cart_outlined), title: "Sepet"),
       _TabModel(SoldBooksPage(),
           icon: Icon(Icons.search_outlined), title: "Ara"),

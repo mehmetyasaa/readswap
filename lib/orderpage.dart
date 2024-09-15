@@ -18,40 +18,41 @@ class _OrderPageState extends State<OrderPage> {
     _ordersFuture = _fetchOrders();
   }
 
-  Future<List<Map<String, dynamic>>> _fetchOrders() async {
-    try {
-      String userId = FirebaseAuth.instance.currentUser!.uid;
-      QuerySnapshot querySnapshot = await FirebaseFirestore.instance
-          .collection('Orders')
-          .where('User',
-              isEqualTo:
-                  FirebaseFirestore.instance.collection('Users').doc(userId))
-          .get();
+Future<List<Map<String, dynamic>>> _fetchOrders() async {
+  try {
+    String userId = FirebaseAuth.instance.currentUser!.uid;
 
-      List<Map<String, dynamic>> orders = [];
+    // Fetch the Orders subcollection from the current user's document in the Users collection
+    QuerySnapshot querySnapshot = await FirebaseFirestore.instance
+        .collection('Users')
+        .doc(userId)
+        .collection('Orders') // Access the Orders subcollection
+        .get();
 
-      for (var doc in querySnapshot.docs) {
-        var orderData = doc.data() as Map<String, dynamic>;
-        DocumentReference bookRef = orderData['Book'];
-        DocumentSnapshot bookSnapshot = await bookRef.get();
+    List<Map<String, dynamic>> orders = [];
 
-        if (bookSnapshot.exists) {
-          var bookData = bookSnapshot.data() as Map<String, dynamic>;
-          orders.add({
-            'orderId': doc.id,
-            'orderDate': orderData['OrderDate'],
-            'bookTitle': bookData['BookTitle'],
-            'bookImage': bookData['BookImage'],
-          });
-        }
+    for (var doc in querySnapshot.docs) {
+      var orderData = doc.data() as Map<String, dynamic>;
+      DocumentReference bookRef = orderData['Book'];
+      DocumentSnapshot bookSnapshot = await bookRef.get();
+
+      if (bookSnapshot.exists) {
+        var bookData = bookSnapshot.data() as Map<String, dynamic>;
+        orders.add({
+          'orderId': doc.id,
+          'orderDate': orderData['OrderDate'],
+          'bookTitle': bookData['BookTitle'],
+          'bookImage': bookData['BookImage'],
+        });
       }
-
-      return orders;
-    } catch (e) {
-      print('Error fetching orders: $e');
-      return [];
     }
+
+    return orders;
+  } catch (e) {
+    print('Error fetching orders: $e');
+    return [];
   }
+}
 
   Future<String> _getDownloadUrl(String gsUrl) async {
     try {

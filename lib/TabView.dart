@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:readswap/SavedItemsPage.dart';
 import 'package:readswap/drawer_header.dart';
 import 'package:readswap/firebase/auth.dart';
 import 'package:readswap/first_page.dart';
@@ -11,6 +12,7 @@ import 'package:readswap/settings.dart';
 import 'package:readswap/tab_models.dart';
 import 'package:readswap/ProfileUpdate.dart';
 import 'package:readswap/category.dart'; // Category sayfasını import et
+
 
 class TabView extends StatelessWidget {
   TabView({Key? key}) : super(key: key);
@@ -131,6 +133,10 @@ class TabView extends StatelessWidget {
             currentPage = DrawerSections.kampanyalar;
           } else if (id == 3) {
             currentPage = DrawerSections.kaydedilenler;
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => SavedItemsPage()),
+            );
           } else if (id == 4) {
             currentPage = DrawerSections.gizlilikPolitikasi;
             Navigator.push(

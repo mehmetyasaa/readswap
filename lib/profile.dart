@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:readswap/LikedItemsPage.dart';
 import 'package:readswap/address_page.dart';
 import 'package:readswap/coin.dart';
 import 'package:readswap/orderpage.dart';
@@ -85,11 +86,10 @@ class _ProfilePageState extends State<ProfilePage> {
                   ),
                   Padding(
                     padding: const EdgeInsets.only(top: 10),
-                    child: FutureBuilder<String?>(
+                    child: FutureBuilder<String?>( 
                       future: userNameFuture,
                       builder: (context, snapshot) {
-                        String userName = snapshot.data ??
-                            'Kullanıcı'; // Kullanıcı adı yoksa "Kullanıcı" yazsın.
+                        String userName = snapshot.data ?? 'Kullanıcı'; // Kullanıcı adı yoksa "Kullanıcı" yazsın.
                         return Text(
                           userName,
                           style: TextStyle(fontSize: 20, color: Colors.white),
@@ -118,12 +118,14 @@ class _ProfilePageState extends State<ProfilePage> {
                 _buildListItem(
                     context, null, 'Kuponlarım', Icons.card_giftcard),
                 SizedBox(height: 10),
-                _buildListItem(context, null, 'Beğendiklerim', Icons.favorite),
+                _buildListItem(
+                    context, LikedItemsPage(), 'Beğendiklerim', Icons.favorite), // Updated here
                 SizedBox(height: 10),
                 _buildListItem(
                     context, AddressPage(), 'Adreslerim', Icons.location_on),
                 SizedBox(height: 10),
-                _buildListItem(context, null, 'Çıkış Yap', Icons.exit_to_app),
+                _buildListItem(
+                    context, null, 'Çıkış Yap', Icons.exit_to_app),
                 SizedBox(height: 10),
               ],
             ),

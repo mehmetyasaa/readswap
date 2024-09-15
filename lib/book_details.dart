@@ -19,11 +19,13 @@ class _BookDetailsState extends State<BookDetails> {
   final TextEditingController _commentController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
   double _averageRating = 0.0;
+  bool _isFavorited = false;
 
   @override
   void initState() {
     super.initState();
     bookFuture = _fetchBookDetails();
+    _checkIfFavorited();
   }
 
   Future<DocumentSnapshot> _fetchBookDetails() async {
@@ -178,6 +180,43 @@ class _BookDetailsState extends State<BookDetails> {
     );
   }
 
+  Future<void> _checkIfFavorited() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    final favoriteDoc = await FirebaseFirestore.instance
+        .collection('Users')
+        .doc(user.uid)
+        .collection('Favorites')
+        .doc(widget.bookId)
+        .get();
+
+    setState(() {
+      _isFavorited = favoriteDoc.exists;
+    });
+  }
+
+  Future<void> _toggleFavorite() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    final favoriteRef = FirebaseFirestore.instance
+        .collection('Users')
+        .doc(user.uid)
+        .collection('Favorites')
+        .doc(widget.bookId);
+
+    if (_isFavorited) {
+      await favoriteRef.delete();
+    } else {
+      await favoriteRef.set({'bookId': widget.bookId});
+    }
+
+    setState(() {
+      _isFavorited = !_isFavorited;
+    });
+  }
+
   Widget _buildCommentsSection() {
     return ExpansionTile(
       title: const Text('Yorumlar'),
@@ -279,6 +318,13 @@ class _BookDetailsState extends State<BookDetails> {
         title: const Text("Kitap Detayları"),
         actions: [
           IconButton(
+            icon: Icon(
+                           _isFavorited ? Icons.favorite : Icons.favorite_border,
+              color: _isFavorited ? Colors.red : null,
+            ),
+            onPressed: _toggleFavorite,
+          ),
+          IconButton(
             icon: const Icon(Icons.star_rate),
             onPressed: _showRatingDialog,
           ),
@@ -320,7 +366,7 @@ class _BookDetailsState extends State<BookDetails> {
                       }
 
                       if (!urlSnapshot.hasData || urlSnapshot.data!.isEmpty) {
-                        return Center(child: Text('Resim Bulunamad'));
+                        return Center(child: Text('Resim Bulunamadı'));
                       }
 
                       String imageUrl = urlSnapshot.data!;
@@ -377,10 +423,10 @@ class _BookDetailsState extends State<BookDetails> {
                           // Optional: handle rating update here
                         },
                       ),
-                      SizedBox(width: 8),
+                      const SizedBox(width: 8),
                       Text(
                         _averageRating.toStringAsFixed(1),
-                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                        style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                       ),
                     ],
                   ),
@@ -406,7 +452,7 @@ class _BookDetailsState extends State<BookDetails> {
                         padding: const EdgeInsets.all(16.0),
                         child: Text(
                           book['BookDescription'] ?? 'Açıklama bulunamadı.',
-                          style: TextStyle(fontSize: 16),
+                          style: const TextStyle(fontSize: 16),
                         ),
                       ),
                     ],
@@ -452,7 +498,7 @@ class _BookDetailsState extends State<BookDetails> {
                       children: [
                         Text(
                           '${book['BookPrice']} RS Coin',
-                          style: TextStyle(
+                          style: const TextStyle(
                             fontSize: 24,
                             fontWeight: FontWeight.bold,
                             color: Colors.green,
@@ -464,8 +510,32 @@ class _BookDetailsState extends State<BookDetails> {
                           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                           children: [
                             ElevatedButton(
-                              onPressed: () {
-                                // Action for Teklif Ver
+                              onPressed: () async {
+                                final user = FirebaseAuth.instance.currentUser;
+                                if (user == null) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text('Lütfen giriş yapınız.')),
+                                  );
+                                  return;
+                                }
+
+                                // Reference to the user's cart in Firestore
+                                final cartRef = FirebaseFirestore.instance
+                                    .collection('Users')
+                                    .doc(user.uid)
+                                    .collection('Cart')
+                                    .doc(widget.bookId);
+
+                                // Adding the book to the cart
+                                await cartRef.set({
+                                  'bookId': widget.bookId,
+                                  'quantity': 1, // You can add quantity if needed
+                                  'addedAt': FieldValue.serverTimestamp(),
+                                });
+
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: Text('Sepete eklendi!')),
+                                );
                               },
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Colors.red,
@@ -475,7 +545,7 @@ class _BookDetailsState extends State<BookDetails> {
                                 ),
                               ),
                               child: const Text(
-                                'Teklif Ver',
+                                'Sepete Ekle',
                                 style: TextStyle(color: Colors.white, fontSize: 16),
                               ),
                             ),
@@ -523,3 +593,4 @@ class _BookDetailsState extends State<BookDetails> {
     );
   }
 }
+

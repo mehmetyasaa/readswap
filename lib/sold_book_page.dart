@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
-import 'package:readswap/sellerDetailsPage.dart';
+import 'sellerDetailsPage.dart';
 
 class SoldBooksPage extends StatefulWidget {
   @override
@@ -21,8 +21,13 @@ class _SoldBooksPageState extends State<SoldBooksPage> {
   Future<List<Map<String, dynamic>>> _fetchSoldBooks() async {
     try {
       String userId = FirebaseAuth.instance.currentUser!.uid;
-      QuerySnapshot querySnapshot =
-          await FirebaseFirestore.instance.collection('Orders').get();
+
+      // Fetch orders from the current user's 'Orders' subcollection
+      QuerySnapshot querySnapshot = await FirebaseFirestore.instance
+          .collection('Users')
+          .doc(userId)
+          .collection('Orders')
+          .get();
 
       List<Map<String, dynamic>> soldBooks = [];
 
@@ -37,9 +42,8 @@ class _SoldBooksPageState extends State<SoldBooksPage> {
           if (bookSnapshot.exists) {
             var bookData = bookSnapshot.data() as Map<String, dynamic>;
 
-            // Check if 'UserId' field matches the current user
-            if (bookData['UserId'] ==
-                FirebaseFirestore.instance.collection('Users').doc(userId)) {
+            // Check if the book belongs to the current user (seller)
+            if (bookData.containsKey('UserId') && bookData['UserId'] == userId) {
               soldBooks.add({
                 'orderId': doc.id,
                 'orderDate': orderData['OrderDate'],
@@ -98,8 +102,7 @@ class _SoldBooksPageState extends State<SoldBooksPage> {
                 leading: FutureBuilder<String>(
                   future: _getDownloadUrl(book['bookImage']),
                   builder: (context, urlSnapshot) {
-                    if (urlSnapshot.connectionState ==
-                        ConnectionState.waiting) {
+                    if (urlSnapshot.connectionState == ConnectionState.waiting) {
                       return CircularProgressIndicator();
                     }
 

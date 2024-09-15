@@ -1,34 +1,54 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class OrderDetailPage extends StatelessWidget {
   final String orderId;
 
   OrderDetailPage({required this.orderId});
 
+  // Fetch the order details from Firestore
   Future<Map<String, dynamic>> _fetchOrderDetails() async {
     try {
+      // Fetch the current user's ID
+      String userId = FirebaseAuth.instance.currentUser!.uid;
+
+      // Fetch the order details using the orderId and userId
       DocumentSnapshot orderSnapshot = await FirebaseFirestore.instance
+          .collection('Users')
+          .doc(userId)
           .collection('Orders')
           .doc(orderId)
           .get();
 
       if (orderSnapshot.exists) {
         var orderData = orderSnapshot.data() as Map<String, dynamic>;
-        DocumentSnapshot bookSnapshot = await orderData['Book'].get();
-        DocumentSnapshot userSnapshot = await orderData['User'].get();
-        DocumentSnapshot addressSnapshot = await orderData['Address'].get();
 
+        // Assuming Book, Address, and other references are stored as Firestore document references
+        DocumentReference bookRef = orderData['Book'];
+        DocumentReference addressRef = orderData['Address'];
+        DocumentReference sellerRef = FirebaseFirestore.instance
+            .collection('Users')
+            .doc(orderData['SellerId']);
+
+        // Fetch book data
+        DocumentSnapshot bookSnapshot = await bookRef.get();
         var bookData = bookSnapshot.data() as Map<String, dynamic>;
-        var userData = userSnapshot.data() as Map<String, dynamic>;
+
+        // Fetch address data
+        DocumentSnapshot addressSnapshot = await addressRef.get();
         var addressData = addressSnapshot.data() as Map<String, dynamic>;
+
+        // Fetch seller data (optional, depending on what you need)
+        DocumentSnapshot sellerSnapshot = await sellerRef.get();
+        var sellerData = sellerSnapshot.data() as Map<String, dynamic>;
 
         return {
           'order': orderData,
           'book': bookData,
-          'user': userData,
           'address': addressData,
+          'seller': sellerData, // Corrected here
         };
       } else {
         throw Exception('Order not found');
@@ -39,6 +59,7 @@ class OrderDetailPage extends StatelessWidget {
     }
   }
 
+  // Get the download URL for the book image from Firebase Storage
   Future<String> _getDownloadUrl(String gsUrl) async {
     try {
       final ref = FirebaseStorage.instance.refFromURL(gsUrl);
@@ -47,6 +68,108 @@ class OrderDetailPage extends StatelessWidget {
       print('Error fetching download URL: $e');
       return '';
     }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Sipariş Detayı'),
+      ),
+      body: FutureBuilder<Map<String, dynamic>>(
+        future: _fetchOrderDetails(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return Center(child: CircularProgressIndicator());
+          } else if (snapshot.hasError) {
+            return Center(child: Text('Error fetching order details.'));
+          } else if (!snapshot.hasData || snapshot.data == null) {
+            return Center(child: Text('Order details not found.'));
+          }
+
+          var order = snapshot.data!['order'];
+          var book = snapshot.data!['book'];
+          var seller = snapshot.data!['seller']; // Corrected here
+          var address = snapshot.data!['address'];
+
+          return Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: ListView(
+              children: [
+                // Order Information
+                Card(
+                  child: ListTile(
+                    title: Text('Sipariş No: ${orderId}'),
+                    subtitle: Text(
+                        'Sipariş Tarihi: ${order['OrderDate'].toDate()}'),
+                  ),
+                ),
+                SizedBox(height: 16.0),
+
+                // Order Status
+                _buildOrderStatus(order),
+                SizedBox(height: 16.0),
+
+                // Product Information
+                FutureBuilder<String>(
+                  future: _getDownloadUrl(book['BookImage']),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return Center(child: CircularProgressIndicator());
+                    }
+
+                    if (snapshot.hasError ||
+                        !snapshot.hasData ||
+                        snapshot.data!.isEmpty) {
+                      return Icon(Icons.error);
+                    }
+
+                    String imageUrl = snapshot.data!;
+                    return ListTile(
+                      leading: Image.network(imageUrl,
+                          width: 50, height: 50, fit: BoxFit.cover),
+                      title: Text(book['BookTitle']),
+                      subtitle: Text('Fiyat: ${book['BookPrice']} TL'),
+                    );
+                  },
+                ),
+
+                // Seller Information (Updated)
+                ListTile(
+                  title: Text('Satıcı Bilgileri'),
+                  subtitle: Text('Ad: ${seller['username']}\nEmail: ${seller['email']}'),
+                ),
+                SizedBox(height: 16.0),
+
+                // Address Information
+                ListTile(
+                  title: Text('Adres Bilgileri'),
+                  subtitle: Text(
+                      'Adres: ${address['street']}, ${address['city']}, ${address['zip']}'),
+                ),
+
+                SizedBox(height: 16.0),
+
+                // Action Buttons
+                ElevatedButton(
+                  onPressed: () {
+                    // Handle return product action
+                  },
+                  child: Text('Ürünü İade Et'),
+                ),
+                SizedBox(height: 8.0),
+                ElevatedButton(
+                  onPressed: () {
+                    // Handle support action
+                  },
+                  child: Text('Destek'),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
   }
 
   Widget _buildOrderStatus(Map<String, dynamic> order) {
@@ -105,109 +228,6 @@ class OrderDetailPage extends StatelessWidget {
             title: Text('Tamamlandı'),
           ),
         ],
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('Sipariş Detayı'),
-      ),
-      body: FutureBuilder<Map<String, dynamic>>(
-        future: _fetchOrderDetails(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return Center(child: CircularProgressIndicator());
-          } else if (snapshot.hasError) {
-            return Center(child: Text('Error fetching order details.'));
-          } else if (!snapshot.hasData || snapshot.data == null) {
-            return Center(child: Text('Order details not found.'));
-          }
-
-          var order = snapshot.data!['order'];
-          var book = snapshot.data!['book'];
-          var user = snapshot.data!['user'];
-          var address = snapshot.data!['address'];
-
-          return Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: ListView(
-              children: [
-                // Order Information
-                Card(
-                  child: ListTile(
-                    title: Text('Sipariş No: ${order['orderId']}'),
-                    subtitle:
-                        Text('Sipariş Tarihi: ${order['OrderDate'].toDate()}'),
-                  ),
-                ),
-                SizedBox(height: 16.0),
-
-                // Order Status
-                _buildOrderStatus(order),
-                SizedBox(height: 16.0),
-
-                // Product Information
-                FutureBuilder<String>(
-                  future: _getDownloadUrl(book['BookImage']),
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return Center(child: CircularProgressIndicator());
-                    }
-
-                    if (snapshot.hasError ||
-                        !snapshot.hasData ||
-                        snapshot.data!.isEmpty) {
-                      return Icon(Icons.error);
-                    }
-
-                    String imageUrl = snapshot.data!;
-                    return ListTile(
-                      leading: Image.network(imageUrl,
-                          width: 50, height: 50, fit: BoxFit.cover),
-                      title: Text(book['BookTitle']),
-                      subtitle: Text('Fiyat: ${book['BookPrice']} TL'),
-                    );
-                  },
-                ),
-
-                // User Information
-                ListTile(
-                  title: Text('Kullanıcı Bilgileri'),
-                  subtitle:
-                      Text('Ad: ${user['name']}\nEmail: ${user['email']}'),
-                ),
-                SizedBox(height: 16.0),
-
-                // Address Information
-                ListTile(
-                  title: Text('Adres Bilgileri'),
-                  subtitle: Text(
-                      'Adres: ${address['street']}, ${address['city']}, ${address['zip']}'),
-                ),
-
-                SizedBox(height: 16.0),
-
-                // Action Buttons
-                ElevatedButton(
-                  onPressed: () {
-                    // Handle return product action
-                  },
-                  child: Text('Ürünü İade Et'),
-                ),
-                SizedBox(height: 8.0),
-                ElevatedButton(
-                  onPressed: () {
-                    // Handle support action
-                  },
-                  child: Text('Destek'),
-                ),
-              ],
-            ),
-          );
-        },
       ),
     );
   }
