@@ -28,6 +28,15 @@ class _BookDetailsState extends State<BookDetails> {
     _checkIfFavorited();
   }
 
+  Future<String> _fetchSellerName(DocumentReference userRef) async {
+    final userDoc = await userRef.get();
+
+    // Cast the data to Map<String, dynamic> to access fields
+    final userData = userDoc.data() as Map<String, dynamic>?;
+
+    return userData?['username'] ?? 'Bilinmeyen Satıcı';
+  }
+
   Future<DocumentSnapshot> _fetchBookDetails() async {
     final bookDoc = await FirebaseFirestore.instance
         .collection('Books')
@@ -319,7 +328,7 @@ class _BookDetailsState extends State<BookDetails> {
         actions: [
           IconButton(
             icon: Icon(
-                           _isFavorited ? Icons.favorite : Icons.favorite_border,
+              _isFavorited ? Icons.favorite : Icons.favorite_border,
               color: _isFavorited ? Colors.red : null,
             ),
             onPressed: _toggleFavorite,
@@ -346,251 +355,283 @@ class _BookDetailsState extends State<BookDetails> {
           }
 
           var book = snapshot.data!.data() as Map<String, dynamic>;
+          return FutureBuilder<String>(
+            future: _fetchSellerName(book['UserId'] as DocumentReference),
+            builder: (context, sellerSnapshot) {
+              if (sellerSnapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
 
-          return SingleChildScrollView(
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // Book Image
-                  FutureBuilder<String>(
-                    future: _getDownloadUrl(book['BookImage']),
-                    builder: (context, urlSnapshot) {
-                      if (urlSnapshot.connectionState == ConnectionState.waiting) {
-                        return const Center(child: CircularProgressIndicator());
-                      }
+              if (sellerSnapshot.hasError) {
+                return Center(
+                    child: Text(
+                        'Satıcı bilgisi alınamadı: ${sellerSnapshot.error}'));
+              }
 
-                      if (urlSnapshot.hasError) {
-                        return Center(child: Text('Hata: ${urlSnapshot.error}'));
-                      }
+              final sellerName = sellerSnapshot.data ?? 'Bilinmeyen Satıcı';
 
-                      if (!urlSnapshot.hasData || urlSnapshot.data!.isEmpty) {
-                        return Center(child: Text('Resim Bulunamadı'));
-                      }
+              return SingleChildScrollView(
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // Book Image
+                      FutureBuilder<String>(
+                        future: _getDownloadUrl(book['BookImage']),
+                        builder: (context, urlSnapshot) {
+                          if (urlSnapshot.connectionState ==
+                              ConnectionState.waiting) {
+                            return const Center(
+                                child: CircularProgressIndicator());
+                          }
 
-                      String imageUrl = urlSnapshot.data!;
-                      return Center(
-                        child: Container(
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(12.0),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black26,
-                                blurRadius: 8.0,
-                                offset: Offset(0, 4),
+                          if (urlSnapshot.hasError) {
+                            return Center(
+                                child: Text('Hata: ${urlSnapshot.error}'));
+                          }
+
+                          if (!urlSnapshot.hasData ||
+                              urlSnapshot.data!.isEmpty) {
+                            return const Center(
+                                child: Text('Resim Bulunamadı'));
+                          }
+
+                          String imageUrl = urlSnapshot.data!;
+                          return Center(
+                            child: Container(
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(12.0),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black26,
+                                    blurRadius: 8.0,
+                                    offset: Offset(0, 4),
+                                  ),
+                                ],
                               ),
-                            ],
-                          ),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(12.0),
-                            child: Image.network(imageUrl, height: 300, fit: BoxFit.cover),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 20),
-
-                  // Author Name
-                  Text(
-                    book['BookWriter'] ?? 'Bilinmeyen',
-                    style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 10),
-
-                  // Rating and Reviews
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      RatingBar.builder(
-                        initialRating: _averageRating,
-                        minRating: 1,
-                        direction: Axis.horizontal,
-                        allowHalfRating: true,
-                        itemCount: 5,
-                        itemPadding: const EdgeInsets.symmetric(horizontal: 4.0),
-                        itemBuilder: (context, _) => const Icon(
-                          Icons.star,
-                          color: Colors.amber,
-                        ),
-                        onRatingUpdate: (rating) {
-                          // Optional: handle rating update here
-                        },
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        _averageRating.toStringAsFixed(1),
-                        style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-
-                  // ReadSwap Marketing Label
-                  const Text(
-                    'ReadSwap Pazarlama',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontStyle: FontStyle.italic,
-                      color: Colors.grey,
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-
-                  // Expansion Tiles for Description, Questions, Return Policies, and Comments
-                  ExpansionTile(
-                    title: const Text('Ürün Açıklaması'),
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: Text(
-                          book['BookDescription'] ?? 'Açıklama bulunamadı.',
-                          style: const TextStyle(fontSize: 16),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const ExpansionTile(
-                    title: Text('Soru & Cevap'),
-                    children: [
-                      // Add relevant question and answer widgets
-                      Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: Text('Henüz soru yok. Sorunuzu yazın!'),
-                      ),
-                    ],
-                  ),
-                  const ExpansionTile(
-                    title: Text('İptal ve İade Koşulları'),
-                    children: [
-                      // Add return policy content
-                      Padding(
-                        padding: const EdgeInsets.all(16.0),
-                        child: Text('İptal ve iade koşulları hakkında bilgi bulunamadı.'),
-                      ),
-                    ],
-                  ),
-                  _buildCommentsSection(),
-                  const SizedBox(height: 20),
-
-                  // Price and Buttons
-                  Container(
-                    padding: const EdgeInsets.all(16.0),
-                    decoration: BoxDecoration(
-                      color: Colors.blueGrey[50],
-                      borderRadius: BorderRadius.circular(12.0),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black26,
-                          blurRadius: 8.0,
-                          offset: Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      children: [
-                        Text(
-                          '${book['BookPrice']} RS Coin',
-                          style: const TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.green,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 20),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: [
-                            ElevatedButton(
-                              onPressed: () async {
-                                final user = FirebaseAuth.instance.currentUser;
-                                if (user == null) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(content: Text('Lütfen giriş yapınız.')),
-                                  );
-                                  return;
-                                }
-
-                                // Reference to the user's cart in Firestore
-                                final cartRef = FirebaseFirestore.instance
-                                    .collection('Users')
-                                    .doc(user.uid)
-                                    .collection('Cart')
-                                    .doc(widget.bookId);
-
-                                // Adding the book to the cart
-                                await cartRef.set({
-                                  'bookId': widget.bookId,
-                                  'quantity': 1, // You can add quantity if needed
-                                  'addedAt': FieldValue.serverTimestamp(),
-                                });
-
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  SnackBar(content: Text('Sepete eklendi!')),
-                                );
-                              },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.red,
-                                padding: EdgeInsets.symmetric(horizontal: 20),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12.0),
-                                ),
-                              ),
-                              child: const Text(
-                                'Sepete Ekle',
-                                style: TextStyle(color: Colors.white, fontSize: 16),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(12.0),
+                                child: Image.network(imageUrl,
+                                    height: 300, fit: BoxFit.cover),
                               ),
                             ),
-                            ElevatedButton(
-                              onPressed: () {
-                                double bookPrice =
-                                    double.tryParse(book['BookPrice']) ?? 0.0;
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                      builder: (context) => CheckoutPage(
-                                            bookId: widget.bookId,
-                                            sellerId:
-                                                (book['UserId'] as DocumentReference)
-                                                    .id,
-                                            price: bookPrice,
-                                            shippingCost: 100,
-                                          )),
-                                );
-                              },
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: Colors.green,
-                                padding: EdgeInsets.symmetric(horizontal: 20),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12.0),
-                                ),
-                              ),
-                              child: const Text(
-                                'Satın Al',
-                                style: TextStyle(color: Colors.white, fontSize: 16),
-                              ),
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 20),
+
+                      // Author Name
+                      Text(
+                        book['BookTitle'] ?? 'Bilinmeyen',
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 10),
+
+                      // Rating and Reviews
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          RatingBar.builder(
+                            initialRating: _averageRating,
+                            minRating: 1,
+                            direction: Axis.horizontal,
+                            allowHalfRating: true,
+                            itemCount: 5,
+                            itemPadding:
+                                const EdgeInsets.symmetric(horizontal: 4.0),
+                            itemBuilder: (context, _) => const Icon(
+                              Icons.star,
+                              color: Colors.amber,
+                            ),
+                            onRatingUpdate: (rating) {
+                              // Optional: handle rating update here
+                            },
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            _averageRating.toStringAsFixed(1),
+                            style: const TextStyle(
+                                fontSize: 20, fontWeight: FontWeight.bold),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+
+                      Text(
+                        sellerName,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontStyle: FontStyle.italic,
+                          color: Colors.grey,
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+
+                      // Expansion Tiles for Description, Questions, Return Policies, and Comments
+                      ExpansionTile(
+                        title: const Text('Ürün Açıklaması'),
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.all(16.0),
+                            child: Text(
+                              book['BookDescription'] ?? 'Açıklama bulunamadı.',
+                              style: const TextStyle(fontSize: 16),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const ExpansionTile(
+                        title: Text('Soru & Cevap'),
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.all(16.0),
+                            child: Text('Henüz soru yok. Sorunuzu yazın!'),
+                          ),
+                        ],
+                      ),
+                      const ExpansionTile(
+                        title: Text('İptal ve İade Koşulları'),
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.all(16.0),
+                            child: Text(
+                                'İptal ve iade koşulları hakkında bilgi bulunamadı.'),
+                          ),
+                        ],
+                      ),
+                      _buildCommentsSection(),
+                      const SizedBox(height: 20),
+
+                      // Price and Buttons
+                      Container(
+                        padding: const EdgeInsets.all(16.0),
+                        decoration: BoxDecoration(
+                          color: Colors.blueGrey[50],
+                          borderRadius: BorderRadius.circular(12.0),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black26,
+                              blurRadius: 8.0,
+                              offset: Offset(0, 4),
                             ),
                           ],
                         ),
-                      ],
-                    ),
+                        child: Column(
+                          children: [
+                            Text(
+                              '${book['BookPrice']} RS Coin',
+                              style: const TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.green,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 20),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                              children: [
+                                ElevatedButton(
+                                  onPressed: () async {
+                                    final user =
+                                        FirebaseAuth.instance.currentUser;
+                                    if (user == null) {
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(
+                                        const SnackBar(
+                                            content:
+                                                Text('Lütfen giriş yapınız.')),
+                                      );
+                                      return;
+                                    }
+
+                                    // Reference to the user's cart in Firestore
+                                    final cartRef = FirebaseFirestore.instance
+                                        .collection('Users')
+                                        .doc(user.uid)
+                                        .collection('Cart')
+                                        .doc(widget.bookId);
+
+                                    // Adding the book to the cart
+                                    await cartRef.set({
+                                      'bookId': widget.bookId,
+                                      'quantity':
+                                          1, // You can add quantity if needed
+                                      'addedAt': FieldValue.serverTimestamp(),
+                                    });
+
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                          content: Text('Sepete eklendi!')),
+                                    );
+                                  },
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.red,
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 20),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12.0),
+                                    ),
+                                  ),
+                                  child: const Text(
+                                    'Sepete Ekle',
+                                    style: TextStyle(
+                                        color: Colors.white, fontSize: 16),
+                                  ),
+                                ),
+                                ElevatedButton(
+                                  onPressed: () {
+                                    double bookPrice =
+                                        double.tryParse(book['BookPrice']) ??
+                                            0.0;
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                          builder: (context) => CheckoutPage(
+                                                bookId: widget.bookId,
+                                                sellerId: (book['UserId']
+                                                        as DocumentReference)
+                                                    .id,
+                                                price: bookPrice,
+                                                shippingCost: 100,
+                                              )),
+                                    );
+                                  },
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.green,
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 20),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12.0),
+                                    ),
+                                  ),
+                                  child: const Text(
+                                    'Satın Al',
+                                    style: TextStyle(
+                                        color: Colors.white, fontSize: 16),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                    ],
                   ),
-                  const SizedBox(height: 20),
-                ],
-              ),
-            ),
+                ),
+              );
+            },
           );
         },
       ),
     );
   }
 }
-
