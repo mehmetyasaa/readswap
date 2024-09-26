@@ -440,11 +440,13 @@ class _HomePageState extends State<HomePage> {
     return querySnapshot.docs;
   }
 
+//sizin için önerilenler
   Future<List<DocumentSnapshot>> _fetchRecommendedBooks(
       List<String> selectedCategories) async {
     QuerySnapshot querySnapshot = await FirebaseFirestore.instance
         .collection('Books')
         .where('CategoryId', whereIn: selectedCategories)
+        .where('isActive', isEqualTo: true) // Sadece aktif olan kitapları getir
         .get();
     return querySnapshot.docs;
   }
