@@ -28,7 +28,7 @@
       "client_info": {
         "mobilesdk_app_id": "1:149350324741:android:56e35b34729a19ce2e5a6c",
         "android_client_info": {
-          "package_name": "com.example.readswap"
+          "package_name": "com.tubitak.readswap"
         }
       },
       "oauth_client": [],
@@ -47,7 +47,7 @@
       "client_info": {
         "mobilesdk_app_id": "1:149350324741:android:09292e7b9c832bd32e5a6c",
         "android_client_info": {
-          "package_name": "com.example.readswapp"
+          "package_name": "com.tubitak.readswapp"
         }
       },
       "oauth_client": [],

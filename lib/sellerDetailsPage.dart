@@ -29,8 +29,6 @@ class _SellerOrderDetailPageState extends State<SellerOrderDetailPage> {
   Future<Map<String, dynamic>> _fetchOrderDetails() async {
     try {
       String userId = FirebaseAuth.instance.currentUser!.uid;
-
-      // Fetch order details from the user's 'Orders' subcollection
       DocumentSnapshot orderSnapshot = await FirebaseFirestore.instance
           .collection('Users')
           .doc(userId)
@@ -40,12 +38,25 @@ class _SellerOrderDetailPageState extends State<SellerOrderDetailPage> {
 
       if (orderSnapshot.exists) {
         var orderData = orderSnapshot.data() as Map<String, dynamic>;
-        DocumentSnapshot bookSnapshot = await orderData['Book'].get();
-        DocumentSnapshot userSnapshot = await orderData['User'].get();
-        DocumentSnapshot addressSnapshot = await orderData['Address'].get();
 
+        // Fetch book data
+        DocumentSnapshot bookSnapshot = await orderData['Book'].get();
         var bookData = bookSnapshot.data() as Map<String, dynamic>;
+
+        // Fetch seller data using SellerId as a string
+        String sellerId = orderData['SellerId']; // Assuming this is a string
+        DocumentSnapshot userSnapshot = await FirebaseFirestore.instance
+            .collection('Users')
+            .doc(sellerId)
+            .get();
+
+        if (!userSnapshot.exists) {
+          throw Exception('Seller not found');
+        }
         var userData = userSnapshot.data() as Map<String, dynamic>;
+
+        // Fetch address data
+        DocumentSnapshot addressSnapshot = await orderData['Address'].get();
         var addressData = addressSnapshot.data() as Map<String, dynamic>;
 
         return {
@@ -65,12 +76,9 @@ class _SellerOrderDetailPageState extends State<SellerOrderDetailPage> {
 
   Future<void> _updateOrderStatus() async {
     try {
-      String userId = FirebaseAuth.instance.currentUser!.uid;
       String trackingNumber = _trackingNumberController.text;
 
       await FirebaseFirestore.instance
-          .collection('Users')
-          .doc(userId)
           .collection('Orders')
           .doc(widget.orderId)
           .update({
@@ -152,8 +160,6 @@ class _SellerOrderDetailPageState extends State<SellerOrderDetailPage> {
                 SizedBox(height: 16.0),
 
                 // Shipping Information
-               
-
                 _buildShippingCompanyDropdown(),
                 TextField(
                   controller: _trackingNumberController,

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
-import 'sellerDetailsPage.dart';
+import 'package:readswap/sellerDetailsPage.dart';
 
 class SoldBooksPage extends StatefulWidget {
   @override
@@ -21,8 +21,6 @@ class _SoldBooksPageState extends State<SoldBooksPage> {
   Future<List<Map<String, dynamic>>> _fetchSoldBooks() async {
     try {
       String userId = FirebaseAuth.instance.currentUser!.uid;
-
-      // Fetch orders from the current user's 'Orders' subcollection
       QuerySnapshot querySnapshot = await FirebaseFirestore.instance
           .collection('Users')
           .doc(userId)
@@ -34,7 +32,6 @@ class _SoldBooksPageState extends State<SoldBooksPage> {
       for (var doc in querySnapshot.docs) {
         var orderData = doc.data() as Map<String, dynamic>;
 
-        // Check if 'Book' field is a DocumentReference
         if (orderData['Book'] is DocumentReference) {
           DocumentReference bookRef = orderData['Book'];
           DocumentSnapshot bookSnapshot = await bookRef.get();
@@ -42,14 +39,29 @@ class _SoldBooksPageState extends State<SoldBooksPage> {
           if (bookSnapshot.exists) {
             var bookData = bookSnapshot.data() as Map<String, dynamic>;
 
-            // Check if the book belongs to the current user (seller)
-            if (bookData.containsKey('UserId') && bookData['UserId'] == userId) {
-              soldBooks.add({
-                'orderId': doc.id,
-                'orderDate': orderData['OrderDate'],
-                'bookTitle': bookData['BookTitle'],
-                'bookImage': bookData['BookImage'],
-              });
+            // UserId'nin DocumentReference olup olmadığını kontrol et
+            if (bookData['UserId'] is DocumentReference) {
+              DocumentReference bookUserIdRef =
+                  bookData['UserId']; // kitap içerisindeki userıd 7hg
+
+              // bookUserIdRef'in yolundan UserId'yi ayıkla
+              if (bookUserIdRef.path.contains('/')) {
+                String bookUserId = bookUserIdRef.path.split('/').last;
+                print('Book UserId: $bookUserId');
+                print('Current UserId: $userId');
+
+                // Eğer bookUserId bizim userId'miz ile eşleşiyorsa, ekleyelim
+                if (bookUserId.isNotEmpty) {
+                  soldBooks.add({
+                    'orderId': doc.id,
+                    'orderDate': orderData['OrderDate'],
+                    'bookTitle': bookData['BookTitle'],
+                    'bookImage': bookData['BookImage'],
+                  });
+                } else {
+                  print('Not Added Book: ${bookData['BookTitle']}');
+                }
+              }
             }
           }
         }
@@ -102,7 +114,8 @@ class _SoldBooksPageState extends State<SoldBooksPage> {
                 leading: FutureBuilder<String>(
                   future: _getDownloadUrl(book['bookImage']),
                   builder: (context, urlSnapshot) {
-                    if (urlSnapshot.connectionState == ConnectionState.waiting) {
+                    if (urlSnapshot.connectionState ==
+                        ConnectionState.waiting) {
                       return CircularProgressIndicator();
                     }
 

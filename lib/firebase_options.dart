@@ -64,7 +64,7 @@ class DefaultFirebaseOptions {
     messagingSenderId: '149350324741',
     projectId: 'readswap37',
     storageBucket: 'readswap37.appspot.com',
-    iosBundleId: 'com.example.readswap',
+    iosBundleId: 'com.tubitak.readswap',
   );
 
   static const FirebaseOptions macos = FirebaseOptions(
