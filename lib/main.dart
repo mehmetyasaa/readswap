@@ -2,11 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:get/route_manager.dart';
 import 'package:readswap/common/color_extenstion.dart';
-import 'package:readswap/loginpage.dart';
-import 'package:readswap/TabView.dart';
-import 'package:readswap/signup.dart';
+import 'package:readswap/old/loginpage.dart';
+import 'package:readswap/old/TabView.dart';
+import 'package:readswap/old/signup.dart';
+import 'package:readswap/view/home/home_view.dart';
 
-import 'firebase_options.dart'; // This file will contain your Firebase configuration for different platforms
+import 'old/firebase_options.dart'; // This file will contain your Firebase configuration for different platforms
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -35,7 +36,7 @@ class MyApp extends StatelessWidget {
         fontFamily: 'SF Pro Text',
         useMaterial3: true,
       ),
-      home: LoginPagee(),
+      home: HomeView(),
     );
   }
 }
