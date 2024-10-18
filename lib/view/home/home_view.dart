@@ -1,16 +1,20 @@
 import 'package:carousel_slider/carousel_slider.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import 'package:readswap/common-widget/top_picks_cell.dart';
+import 'package:readswap/old/controller/HomeController.dart';
 import 'package:readswap/view/main_tab_view.dart/main_tab_view.dart';
-
 import '../../common-widget/best_seller_cell.dart';
 import '../../common-widget/genres_cell.dart';
 import '../../common-widget/recently_cell.dart';
 import '../../common-widget/round_button.dart';
 import '../../common-widget/round_textfield.dart';
 import '../../common/color_extenstion.dart';
+import '../../common/constants/genres_contansts.dart';
 import '../book_reading/book_reading_view.dart';
 import '../login/sign_up_view.dart';
+
 
 class HomeView extends StatefulWidget {
   const HomeView({super.key});
@@ -20,81 +24,13 @@ class HomeView extends StatefulWidget {
 }
 
 class _HomeViewState extends State<HomeView> {
+  // Instantiate the HomeController
+  // final HomeController homeController = Get.put(HomeController());
+  final HomeController homeController = Get.find<HomeController>();
+
 
   TextEditingController txtName = TextEditingController();
   TextEditingController txtEmail = TextEditingController();
-
-  List topPicksArr = [
-    {
-      "name": "The Dissapearance of Emila Zola",
-      "author": "Michael Rosen",
-      "img": "assets/img/1.jpg"
-    },
-    {
-      "name": "Fatherhood",
-      "author": "Marcus Berkmann",
-      "img": "assets/img/2.jpg"
-    },
-    {
-      "name": "The Time Travellers Handbook",
-      "author": "Stride Lottie",
-      "img": "assets/img/3.jpg"
-    }
-  ];
-
-  List bestArr = [
-    {
-      "name": "Fatherhood",
-      "author": "by Christopher Wilson",
-      "img": "assets/img/4.jpg",
-      "rating": 5.0
-    },
-    {
-      "name": "In A Land Of Paper Gods",
-      "author": "by Rebecca Mackenzie",
-      "img": "assets/img/5.jpg",
-      "rating": 4.0
-    },
-    {
-      "name": "Tattletale",
-      "author": "by Sarah J. Noughton",
-      "img": "assets/img/6.jpg",
-      "rating": 3.0
-    }
-  ];
-
-  List genresArr = [
-    {
-      "name": "Graphic Novels",
-      "img": "assets/img/g1.png",
-    },
-    {
-      "name": "Graphic Novels",
-      "img": "assets/img/g1.png",
-    },
-    {
-      "name": "Graphic Novels",
-      "img": "assets/img/g1.png",
-    }
-  ];
-
-  List recentArr = [
-    {
-      "name": "The Fatal Tree",
-      "author": "by Jake Arnott",
-      "img": "assets/img/10.jpg"
-    },
-    {
-      "name": "Day Four",
-      "author": "by LOTZ, SARAH",
-      "img": "assets/img/11.jpg"
-    },
-    {
-      "name": "Door to Door",
-      "author": "by Edward Humes",
-      "img": "assets/img/12.jpg"
-    }
-  ];
 
   @override
   Widget build(BuildContext context) {
@@ -146,34 +82,87 @@ class _HomeViewState extends State<HomeView> {
                       actions: [
                         IconButton(
                             onPressed: () {
-
-                                sideMenuScaffoldKey.currentState?.openEndDrawer();
-
-                            }, icon: const Icon(Icons.menu))
+                              sideMenuScaffoldKey.currentState?.openEndDrawer();
+                            },
+                            icon: const Icon(Icons.menu))
                       ],
                     ),
-                    SizedBox(
-                      width: media.width,
-                      height: media.width * 0.8,
-                      child: CarouselSlider.builder(
-                        itemCount: topPicksArr.length,
-                        itemBuilder: (BuildContext context, int itemIndex,
-                            int pageViewIndex) {
-                          var iObj = topPicksArr[itemIndex] as Map? ?? {};
-                          return TopPicksCell(
-                            iObj: iObj,
-                          );
-                        },
-                        options: CarouselOptions(
-                          autoPlay: false,
-                          aspectRatio: 1,
-                          enlargeCenterPage: true,
-                          viewportFraction: 0.45,
-                          enlargeFactor: 0.4,
-                          enlargeStrategy: CenterPageEnlargeStrategy.zoom,
-                        ),
-                      ),
-                    ),
+//                     SizedBox(
+//       width: media.width,
+//       height: media.width * 0.8, // Adjust height to suit the carousel items
+//       child: Obx(() {
+//         if (homeController.bestBooks.isEmpty) {
+//           return const Center(child: CircularProgressIndicator());
+//         }
+//         return CarouselSlider.builder(
+//           itemCount: homeController.bestBooks.length,
+//           itemBuilder: (BuildContext context, int itemIndex, int pageViewIndex) {
+//             var iObj = homeController.bestBooks[itemIndex].data() as Map<String, dynamic>;
+//             return TopPicksCell(
+//               book: iObj, // Pass the book data into TopPicksCell
+//             );
+//       },
+//       options: CarouselOptions(
+//         autoPlay: false,
+//         aspectRatio: 1,
+//         enlargeCenterPage: true,
+//         viewportFraction: 0.45,
+//         enlargeFactor: 0.4,
+//         enlargeStrategy: CenterPageEnlargeStrategy.zoom,
+//       ),
+//     );
+//   }),
+// ),
+
+
+//---------------------------------------
+//aşağıda stream builder ile yapılmış versiyonu bulunmakta eğer kitap eklendiğinde anasayfaya hemen düşmez ise bu yöntem kullanılacaktır 
+//----------------------------------------
+SizedBox(
+  width: media.width,
+  height: media.width * 0.8, // Carousel item yüksekliği
+  child: StreamBuilder<QuerySnapshot>(
+    stream: FirebaseFirestore.instance.collection('Books')
+        .orderBy('CreatedAt', descending: true)
+        .where('isActive', isEqualTo: true)
+        .limit(10)
+        .snapshots(), // Firestore'dan gelen canlı güncellemeleri dinler
+    builder: (BuildContext context, AsyncSnapshot<QuerySnapshot> snapshot) {
+      if (snapshot.connectionState == ConnectionState.waiting) {
+        return const Center(child: CircularProgressIndicator());
+      }
+      if (snapshot.hasError) {
+        return Center(child: Text('Bir hata oluştu: ${snapshot.error}'));
+      }
+      if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+        return const Center(child: Text('Kitap bulunamadı'));
+      }
+      
+      var books = snapshot.data!.docs;
+      
+      return CarouselSlider.builder(
+        itemCount: books.length,
+        itemBuilder: (BuildContext context, int itemIndex, int pageViewIndex) {
+          var iObj = books[itemIndex].data() as Map<String, dynamic>;
+          return TopPicksCell(
+            book: iObj, // Kitap verisini gönder
+          );
+        },
+        options: CarouselOptions(
+          autoPlay: false,
+          aspectRatio: 1,
+          enlargeCenterPage: true,
+          viewportFraction: 0.45,
+          enlargeFactor: 0.4,
+          enlargeStrategy: CenterPageEnlargeStrategy.zoom,
+        ),
+      );
+    },
+  ),
+),
+
+
+                    // Rest of the UI remains unchanged
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 20),
                       child: Row(children: [
@@ -186,27 +175,36 @@ class _HomeViewState extends State<HomeView> {
                         )
                       ]),
                     ),
-                    SizedBox(
-                      height: media.width * 0.9,
-                      child: ListView.builder(
-                          padding: const EdgeInsets.symmetric(
-                              vertical: 15, horizontal: 8),
-                          scrollDirection: Axis.horizontal,
-                          itemCount: bestArr.length,
-                          itemBuilder: ((context, index) {
-                            var bObj = bestArr[index] as Map? ?? {};
-
-                            return GestureDetector(
-                              onTap: (){
-                                Navigator.push(context, MaterialPageRoute(builder: (context) => BookReadingView(bObj: bObj,) ) );
-                              },
-                              child: BestSellerCell(
-                                bObj: bObj,
-                              ),
-                            );
-                          })),
-                    ),
-                    Container(
+SizedBox(
+  height: media.width * 0.9,
+  child: Obx(() {
+    if (homeController.bestBooks.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    return ListView.builder(
+      padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 8),
+      scrollDirection: Axis.horizontal,
+      itemCount: homeController.bestBooks.length,
+      itemBuilder: (context, index) {
+        var bObj = homeController.bestBooks[index].data() as Map<String, dynamic>;
+        return GestureDetector(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => BookReadingView(bObj: bObj),
+              ),
+            );
+          },
+          child: BestSellerCell(
+            book: bObj,
+          ),
+        );
+      },
+    );
+  }),
+),  
+                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 20),
                       child: Row(children: [
                         Text(
@@ -251,21 +249,21 @@ class _HomeViewState extends State<HomeView> {
                         )
                       ]),
                     ),
-                    SizedBox(
-                      height: media.width * 0.7,
-                      child: ListView.builder(
-                          padding: const EdgeInsets.symmetric(
-                              vertical: 15, horizontal: 8),
-                          scrollDirection: Axis.horizontal,
-                          itemCount: recentArr.length,
-                          itemBuilder: ((context, index) {
-                            var bObj = recentArr[index] as Map? ?? {};
+                    // SizedBox(
+                    //   height: media.width * 0.7,
+                    //   child: ListView.builder(
+                    //       padding: const EdgeInsets.symmetric(
+                    //           vertical: 15, horizontal: 8),
+                    //       scrollDirection: Axis.horizontal,
+                    //       itemCount: recentArr.length,
+                    //       itemBuilder: ((context, index) {
+                    //         var bObj = recentArr[index] as Map? ?? {};
 
-                            return RecentlyCell(
-                              iObj: bObj,
-                            );
-                          })),
-                    ),
+                    //         return RecentlyCell(
+                    //           iObj: bObj,
+                    //         );
+                    //       })),
+                    // ),
                     SizedBox(
                       height: media.width * 0.1,
                     ),
