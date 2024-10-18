@@ -3,7 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:readswap/common-widget/top_picks_cell.dart';
-import 'package:readswap/old/controller/HomeController.dart';
+import 'package:readswap/contollers/HomeController.dart';
 import 'package:readswap/view/main_tab_view.dart/main_tab_view.dart';
 import '../../common-widget/best_seller_cell.dart';
 import '../../common-widget/genres_cell.dart';

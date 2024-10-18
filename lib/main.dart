@@ -3,11 +3,13 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:get/get.dart';
 import 'package:get/get_navigation/src/root/get_material_app.dart';
 import 'package:readswap/common/color_extenstion.dart';
-import 'package:readswap/old/controller/HomeController.dart';
+import 'package:readswap/contollers/HomeController.dart';
 import 'package:readswap/old/loginpage.dart';
 
 import 'package:readswap/old/signup.dart';
+import 'package:readswap/view/login/sign_up_view.dart';
 import 'package:readswap/view/main_tab_view.dart/main_tab_view.dart';
+import 'package:readswap/view/onboarding/onboarding_view.dart';
 
 
 import 'old/firebase_options.dart'; // This file will contain your Firebase configuration for different platforms
@@ -43,7 +45,7 @@ class MyApp extends StatelessWidget {
         fontFamily: 'SF Pro Text',
         useMaterial3: true,
       ),
-      home: const MainTabView(),
+      home: const OnboardingView(),
     );
   }
 }

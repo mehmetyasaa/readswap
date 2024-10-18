@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:readswap/old/categorybookscreen.dart';
-import 'package:readswap/old/controller/HomeController.dart';
+import 'package:readswap/contollers/HomeController.dart';
 
 
 class HomePage extends StatelessWidget {

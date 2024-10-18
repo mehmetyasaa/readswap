@@ -59,7 +59,7 @@ Future<List<DocumentSnapshot>> _fetchBestBooks() async {
     QuerySnapshot querySnapshot = await FirebaseFirestore.instance
         .collection('Books')
         .orderBy('CreatedAt', descending: true)
-        .limit(10)
+        .limit(2)
         .where('isActive', isEqualTo: true)
         .get();
     return querySnapshot.docs;
