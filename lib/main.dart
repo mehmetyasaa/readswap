@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:get/route_manager.dart';
-import 'package:readswap/first_page.dart';
+import 'package:readswap/common/color_extenstion.dart';
 import 'package:readswap/loginpage.dart';
 import 'package:readswap/TabView.dart';
 import 'package:readswap/signup.dart';
@@ -30,7 +30,9 @@ class MyApp extends StatelessWidget {
       },
       title: 'ReadSwap',
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+        primaryColor: TColor.primary,
+      
+        fontFamily: 'SF Pro Text',
         useMaterial3: true,
       ),
       home: LoginPagee(),
